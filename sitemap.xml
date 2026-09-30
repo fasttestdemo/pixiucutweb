@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://pixiucut.meitool.cn/</loc>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://pixiucut.meitool.cn/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://pixiucut.meitool.cn/en/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pixiucut.meitool.cn/" />
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://pixiucut.meitool.cn/tutorials.html</loc>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://pixiucut.meitool.cn/tutorials.html" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://pixiucut.meitool.cn/en/tutorials.html" />
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://pixiucut.meitool.cn/plugins-dev.html</loc>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://pixiucut.meitool.cn/plugins-dev.html" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://pixiucut.meitool.cn/en/plugins-dev.html" />
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://pixiucut.meitool.cn/pricing.html</loc>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://pixiucut.meitool.cn/pricing.html" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://pixiucut.meitool.cn/en/pricing.html" />
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://pixiucut.meitool.cn/en/</loc>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://pixiucut.meitool.cn/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://pixiucut.meitool.cn/en/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pixiucut.meitool.cn/" />
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://pixiucut.meitool.cn/en/tutorials.html</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://pixiucut.meitool.cn/en/plugins-dev.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://pixiucut.meitool.cn/en/pricing.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>

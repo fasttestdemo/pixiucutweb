@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plugin Development Guide · PixiuCut SDK 1.0.0</title>
+  <meta name="description" content="PixiuCut plugin development guide: build draft-tool plugins on the official SDK 1.0.0. Covers a five-minute example, manifest, permissions, SDK API, draft format and error codes." />
+  <meta name="keywords" content="PixiuCut plugin development,plugin SDK,draft transformer,PixiuCutPlugin,plugin API,video editor plugin" />
+  <link rel="canonical" href="https://pixiucut.meitool.cn/en/plugins-dev.html" />
+  <link rel="alternate" hreflang="zh-CN" href="https://pixiucut.meitool.cn/plugins-dev.html" />
+  <link rel="alternate" hreflang="en" href="https://pixiucut.meitool.cn/en/plugins-dev.html" />
+  <link rel="alternate" hreflang="x-default" href="https://pixiucut.meitool.cn/plugins-dev.html" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Plugin Development Guide · PixiuCut" />
+  <meta property="og:description" content="Build PixiuCut draft-tool plugins on the official SDK 1.0.0." />
+  <meta property="og:url" content="https://pixiucut.meitool.cn/en/plugins-dev.html" />
+  <link rel="icon" type="image/png" href="../assets/img/logo-32.png" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header" id="siteHeader">
+    <div class="container header-inner">
+      <a class="brand" href="index.html" aria-label="PixiuCut">
+        <img src="../assets/img/logo.png" alt="PixiuCut Logo" class="brand-logo" />
+        <span class="brand-name">PixiuCut</span>
+      </a>
+      <nav class="nav" id="mainNav">
+        <a href="index.html#features">Features</a>
+        <a href="tutorials.html">Tutorials</a>
+        <a href="plugins-dev.html">Plugin Dev</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="index.html#download">Download</a>
+      </nav>
+      <div class="header-actions">
+        <a class="lang-toggle" href="../plugins-dev.html" hreflang="zh-CN" aria-label="切换到中文">中文</a>
+        <a href="index.html#download" class="btn btn-primary btn-sm">Download</a>
+        <button class="nav-burger" id="navBurger" aria-label="Menu"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container"><div class="breadcrumb"><a href="index.html">Home</a><span>/</span>Plugin Dev Guide</div></div>
+
+    <section class="page-hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="container">
+        <span class="pill pill-accent">SDK 1.0.0</span>
+        <h1>Plugin Development Guide</h1>
+        <p>For third-party developers building draft tools for PixiuCut. Implement against the method names, fields and error codes here — no need to read the app source.</p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="container">
+        <div class="docs-layout">
+          <aside class="docs-toc">
+            <h4>Contents</h4>
+            <ul>
+              <li><a href="#overview">1. What plugins can do</a></li>
+              <li><a href="#quickstart">2. Five-minute example</a></li>
+              <li><a href="#package">3. Package & manifest</a></li>
+              <li><a href="#permissions">4. Permissions</a></li>
+              <li><a href="#api">5. SDK API</a></li>
+              <li><a href="#draft">6. Draft format</a></li>
+              <li><a href="#errors">7. Error codes</a></li>
+              <li><a href="#publish">8. Publishing</a></li>
+              <li><a href="#faq">9. FAQ</a></li>
+            </ul>
+          </aside>
+
+          <div class="docs-content">
+            <h2 id="overview">1. What plugins can do</h2>
+            <p>A plugin is a <strong>draft transformer</strong>: it reads a user draft and writes one or more new drafts. To produce a video, it can delegate to the app to send a saved draft into the <strong>task center</strong> for export.</p>
+            <pre class="code"><code>input  = a draft (plus the user's own media files)
+output = new draft(s)
+option = delegate the app to export drafts to a chosen directory</code></pre>
+            <p>Good use cases:</p>
+            <ul>
+              <li>Batch-replace media in a template draft to generate variants, then enqueue export</li>
+              <li>Read video info or supply your own audio, call your own ASR service, write back a subtitled draft</li>
+              <li>Convert another app's project description into a PixiuCut draft</li>
+              <li>Sync drafts to your own storage</li>
+            </ul>
+            <div class="callout">Plugin pages run in a separate window; they don't enter the editor timeline and don't provide custom filters/transitions/encoders. Media probing, audio extraction, batch splitting and export are all done by the app — plugins must not connect to the editing engine themselves.</div>
+
+            <h2 id="quickstart">2. Five-minute example</h2>
+            <p>A minimal plugin needs only two files:</p>
+            <pre class="code"><code>hello-plugin/
+├── manifest.json
+└── index.html</code></pre>
+            <h3>manifest.json</h3>
+            <pre class="code"><code>{
+  "id": "com.example.hello",
+  "name": "Hello Plugin",
+  "version": "1.0.0",
+  "description": "My first plugin",
+  "author": "Your Name",
+  "main": "index.html",
+  "sdkVersion": "^1.0.0",
+  "permissions": ["draft.read", "draft.write", "ui.notify"],
+  "slots": [{ "id": "home.shortcut", "label": "Hello" }],
+  "window": { "width": 640, "height": 480 }
+}</code></pre>
+            <h3>Use the global object PixiuCutPlugin</h3>
+            <pre class="code"><code>const sdk = PixiuCutPlugin
+
+async function init() {
+  const drafts = await sdk.draft.list()
+  console.log(`Connected, ${drafts.length} draft(s)`)
+  await sdk.ready()
+}
+
+async function makeVariant() {
+  const drafts = await sdk.draft.list()
+  if (!drafts.length) return sdk.ui.notify('Create a draft first', 'warning')
+  const { blob } = await sdk.draft.readBlob(drafts[0].id)
+  await sdk.draft.create(drafts[0].name + ' copy', blob)
+  await sdk.ui.notify('Copy created', 'success')
+}
+
+init().catch((e) => console.error(e))</code></pre>
+            <div class="callout warn">Don't bundle the SDK, and don't write <code>&lt;script src="sdk.js"&gt;</code>. The app's local page server injects <code>/sdk.js</code> when returning your HTML. Pages run in a sandboxed iframe (<code>sandbox="allow-scripts allow-forms allow-modals"</code>, without <code>allow-same-origin</code>), so <code>localStorage</code> is unavailable — write config to <code>fs.dataDir()</code>.</div>
+
+            <h2 id="package">3. Package & manifest</h2>
+            <p>No required build tool. Plain HTML, or a single entry page built with React / Vue / Svelte. Mark <code>PixiuCutPlugin</code> as an external global; don't bundle it. Static assets use paths relative to the plugin root.</p>
+            <table>
+              <thead><tr><th>Field</th><th>Requirement</th></tr></thead>
+              <tbody>
+                <tr><td><code>id</code></td><td>Required. Reverse-domain, globally unique; install folder name matches it</td></tr>
+                <tr><td><code>name</code> / <code>version</code> / <code>author</code></td><td>Required. <code>version</code> is semver</td></tr>
+                <tr><td><code>main</code></td><td>Entry HTML, defaults to <code>index.html</code></td></tr>
+                <tr><td><code>sdkVersion</code></td><td>Target SDK, currently <code>^1.0.0</code></td></tr>
+                <tr><td><code>permissions</code></td><td>See section 4, shown to the user at install</td></tr>
+                <tr><td><code>slots</code></td><td>Home entries, <code>id</code> fixed to <code>home.shortcut</code>, optional relative <code>icon</code></td></tr>
+                <tr><td><code>window</code></td><td>Optional. Default 800×600, resizable, min 480×360</td></tr>
+                <tr><td><code>mcp</code></td><td>Optional. Expose tools to the on-device assistant</td></tr>
+              </tbody>
+            </table>
+
+            <h2 id="permissions">4. Permissions</h2>
+            <p>Users see the permissions at install; <strong>high-risk</strong> ones are highlighted. Declare only what you need.</p>
+            <table>
+              <thead><tr><th>Permission</th><th>Risk</th><th>Enables</th></tr></thead>
+              <tbody>
+                <tr><td><code>draft.read</code></td><td>Low</td><td>list, readBlob, draft.changed</td></tr>
+                <tr><td><code>draft.write</code></td><td>Medium</td><td>create, writeBlob, remove, rename, stageMedia</td></tr>
+                <tr><td><code>fs.read</code> / <code>fs.write</code></td><td>High</td><td>File read/write</td></tr>
+                <tr><td><code>net.fetch</code> / <code>net.local</code></td><td>High</td><td>Internet / loopback requests</td></tr>
+                <tr><td><code>media.probe</code></td><td>Low</td><td>probe, extractAudio, getEncodeCaps</td></tr>
+                <tr><td><code>media.render</code></td><td>High</td><td>Batch split startSplitJob / cancelSplitJob</td></tr>
+                <tr><td><code>export.render</code></td><td>High</td><td>enqueue, cancel, getStatus and export events</td></tr>
+                <tr><td><code>process.spawn</code></td><td>High</td><td>Launch external processes</td></tr>
+                <tr><td><code>ui.notify</code> / <code>ui.pickFiles</code> / <code>ui.pickDirectory</code></td><td>Low</td><td>Notify, pick files/dirs</td></tr>
+              </tbody>
+            </table>
+            <p>These are open by default without declaration: <code>plugin.ready/resize/close/log/packageDir/setBusy</code>, <code>ui.getAppInfo</code>, <code>license.isActive/trialDaysLeft</code>, <code>events.subscribe</code>, and <code>fs.dataDir</code> with its read/write.</p>
+
+            <h2 id="api">5. SDK API</h2>
+            <p>Global object <code>window.PixiuCutPlugin</code>; async methods return Promises and throw <code>PluginError</code> (<code>err.code</code>) on failure. Default per-call timeout is 60 seconds.</p>
+            <h3>Drafts</h3>
+            <pre class="code"><code>const drafts = await PixiuCutPlugin.draft.list()
+// { id, name, dir, created, modified, durationUs?, thumbnail, type }
+
+const { blob, version } = await PixiuCutPlugin.draft.readBlob(draftId)
+const summary = await PixiuCutPlugin.draft.create(name, blob?)  // blob acts as a template
+const res = await PixiuCutPlugin.draft.writeBlob(id, blob, version) // version for conflict check
+await PixiuCutPlugin.draft.remove(id)
+await PixiuCutPlugin.draft.rename(id, newName)
+const { path } = await PixiuCutPlugin.draft.stageMedia(draftId, srcPath)</code></pre>
+            <h3>Media probe</h3>
+            <pre class="code"><code>const info = await PixiuCutPlugin.media.probe(filePath)
+// { success, type, width, height, durationUs, frameRate, codec }
+const audio = await PixiuCutPlugin.media.extractAudio(filePath, { format: 'wav' })</code></pre>
+            <h3>Delegated export</h3>
+            <pre class="code"><code>const { queueId } = await PixiuCutPlugin.export.enqueue(
+  [{ draftId: 'proj_…', outputDir: 'D:/exports', fileName: 'My title' }],
+  { config: { format: 'mp4', vcodec: 'libx264', resolution: 1080, frameRate: 30 } },
+)
+PixiuCutPlugin.on('export.progress', ({ draftId, percent }) => {})
+PixiuCutPlugin.on('export.queueIdle', ({ queueId }) => {})</code></pre>
+            <h3>UI & lifecycle</h3>
+            <pre class="code"><code>await PixiuCutPlugin.ui.notify('Done', 'success')
+const files = await PixiuCutPlugin.ui.pickFiles({ multiple: true })
+const dir = await PixiuCutPlugin.ui.pickDirectory()
+await PixiuCutPlugin.ready()
+await PixiuCutPlugin.setBusy(true)   // during long tasks
+const root = await PixiuCutPlugin.packageDir()
+const data = await PixiuCutPlugin.fs.dataDir()  // read/write without permission</code></pre>
+            <div class="callout">Also available: <code>fs.*</code> file ops, <code>net.fetch</code> network proxy, <code>process.*</code> external processes, <code>media.startSplitJob</code> batch splitting, and <code>mcp.*</code> to register tools with the on-device assistant. Full signatures ship with the app's bundled guide.</div>
+
+            <h2 id="draft">6. Draft format</h2>
+            <p>A draft blob is a JSON string with <code>format_version</code> fixed to <code>"1.2"</code>. Time fields are in <strong>microseconds (µs)</strong>; <code>project_info.created/modified/last_opened</code> are <strong>seconds</strong> (Unix time).</p>
+            <pre class="code"><code>{
+  "format_version": "1.2",
+  "project_info": { "id": "proj_…", "name": "My video", "created": 1700000000,
+                    "modified": 1700000000, "duration": 0, "status": "editing" },
+  "project_settings": {
+    "video": { "width": 1080, "height": 1920, "frame_rate": 30 },
+    "audio": { "sample_rate": 48000, "channels": 2 }
+  },
+  "tracks": [
+    { "id": "track_1", "type": "video", "name": "Main video",
+      "main_track": 1, "clips": [] }
+  ]
+}</code></pre>
+            <p><code>clip.type</code> is an integer: 1 video, 2 audio, 3 image, 4 text, 5 solid, 6 subtitle. Media clips must include <code>name / type / start_time / in_point / out_point / media_duration / duration</code>, where <code>duration = (out_point - in_point) / speed_factor</code>. A subtitle track holds one container clip (<code>type:6</code>, <code>subtitle_container:true</code>); each line is an entry in <code>subtitle_track.items</code>.</p>
+
+            <h2 id="errors">7. Error codes</h2>
+            <table>
+              <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+              <tbody>
+                <tr><td><code>PERMISSION_DENIED</code></td><td>Permission not declared or not granted</td></tr>
+                <tr><td><code>UNKNOWN_METHOD</code></td><td>Method or event name doesn't exist</td></tr>
+                <tr><td><code>NOT_FOUND</code></td><td>Draft, file or process handle not found</td></tr>
+                <tr><td><code>DRAFT_BUSY</code> / <code>EXPORT_BUSY</code></td><td>Draft open in editor / editor open, can't enqueue</td></tr>
+                <tr><td><code>CONFLICT</code></td><td>etag conflict, or target file exists</td></tr>
+                <tr><td><code>INVALID_DRAFT</code></td><td>JSON unparseable or invalid format</td></tr>
+                <tr><td><code>PAYLOAD_TOO_LARGE</code></td><td>Exceeds per-call size limit</td></tr>
+                <tr><td><code>ENGINE_UNAVAILABLE</code></td><td>Editing engine not ready</td></tr>
+                <tr><td><code>TIMEOUT</code></td><td>Exceeds the default 60s SDK timeout</td></tr>
+                <tr><td><code>INTERNAL</code></td><td>Internal app error</td></tr>
+              </tbody>
+            </table>
+
+            <h2 id="publish">8. Publishing</h2>
+            <p>Package as a single zip: after extraction, the root is <code>manifest.json</code> and the entry HTML — no extra wrapping folder, size under <strong>80MB</strong>.</p>
+            <ul>
+              <li><strong>Install from zip</strong>: Plugin manager → Installed → "Install from zip"</li>
+              <li><strong>Local folder</strong>: place under the app's plugin directory with the folder named after <code>manifest.id</code>, then "Refresh"</li>
+              <li><strong>Discovery catalog</strong>: provide a record (id, name, latestVersion, downloadUrl, …) to the official catalog maintainer; users install from "Plugins → Discover"</li>
+            </ul>
+            <p>Enabled by default after install, appears as a home shortcut, no restart needed. On update the install directory is replaced while the <code>fs.dataDir()</code> data directory is preserved.</p>
+
+            <h2 id="faq">9. FAQ</h2>
+            <h3>Can I use React / Vue / Svelte?</h3>
+            <p>Yes. The build output is a single entry HTML. Don't bundle the SDK; mark <code>PixiuCutPlugin</code> as an external global.</p>
+            <h3>Can I call Node.js?</h3>
+            <p>No. System capabilities go through SDK methods. For ffmpeg or bundled tools, use <code>process.spawn</code> with an absolute path, or ship the binary inside the plugin package.</p>
+            <h3>Can I connect to the editing engine directly?</h3>
+            <p>No. Probing, audio extraction, splitting and export all go through the SDK, performed by the app.</p>
+            <h3>Can plugins call each other?</h3>
+            <p>No. The handoff is: plugin A creates a draft, then the user opens plugin B to read it.</p>
+
+            <div class="callout" style="margin-top:32px">This is a quick reference. The full SDK (all <code>fs</code>/<code>net</code>/<code>process</code>/<code>media</code>/<code>mcp</code> signatures and constraints) ships with the app. <a href="index.html#download">Download PixiuCut</a> and press <code>F12</code> in the plugin window to debug.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img src="../assets/img/logo.png" alt="PixiuCut" class="brand-logo" />
+        <div><div class="brand-name">PixiuCut</div><p class="footer-tag">Local desktop video editor</p></div>
+      </div>
+      <nav class="footer-links">
+        <a href="index.html#features">Features</a>
+        <a href="tutorials.html">Tutorials</a>
+        <a href="plugins-dev.html">Plugin Dev</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="../plugins-dev.html" hreflang="zh-CN">中文</a>
+      </nav>
+    </div>
+    <div class="container footer-bottom"><span>© 2026 PixiuCut. All rights reserved.</span></div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>

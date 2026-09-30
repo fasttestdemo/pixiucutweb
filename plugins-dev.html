@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>插件开发指南 · PixiuCut SDK 1.0.0</title>
+  <meta name="description" content="PixiuCut 插件开发指南：基于官方 SDK 1.0.0 开发草稿工具插件。包含五分钟示例、manifest 清单、权限模型、SDK API、草稿格式与错误码，按文档即可开发发布。" />
+  <meta name="keywords" content="PixiuCut插件开发,插件SDK,草稿转换器,PixiuCutPlugin,插件API,视频剪辑插件" />
+  <link rel="canonical" href="https://pixiucut.meitool.cn/plugins-dev.html" />
+  <link rel="alternate" hreflang="zh-CN" href="https://pixiucut.meitool.cn/plugins-dev.html" />
+  <link rel="alternate" hreflang="en" href="https://pixiucut.meitool.cn/en/plugins-dev.html" />
+  <link rel="alternate" hreflang="x-default" href="https://pixiucut.meitool.cn/plugins-dev.html" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="插件开发指南 · PixiuCut" />
+  <meta property="og:description" content="基于官方 SDK 1.0.0 开发 PixiuCut 草稿工具插件。" />
+  <meta property="og:url" content="https://pixiucut.meitool.cn/plugins-dev.html" />
+  <link rel="icon" type="image/png" href="assets/img/logo-32.png" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header" id="siteHeader">
+    <div class="container header-inner">
+      <a class="brand" href="index.html" aria-label="PixiuCut">
+        <img src="assets/img/logo.png" alt="PixiuCut Logo" class="brand-logo" />
+        <span class="brand-name">PixiuCut</span>
+      </a>
+      <nav class="nav" id="mainNav">
+        <a href="index.html#features">功能</a>
+        <a href="tutorials.html">教程</a>
+        <a href="plugins-dev.html">插件开发</a>
+        <a href="pricing.html">购买</a>
+        <a href="index.html#download">下载</a>
+      </nav>
+      <div class="header-actions">
+        <a class="lang-toggle" href="en/plugins-dev.html" hreflang="en" aria-label="Switch to English">EN</a>
+        <a href="index.html#download" class="btn btn-primary btn-sm">立即下载</a>
+        <button class="nav-burger" id="navBurger" aria-label="菜单"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container"><div class="breadcrumb"><a href="index.html">首页</a><span>/</span>插件开发指南</div></div>
+
+    <section class="page-hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="container">
+        <span class="pill pill-accent">SDK 1.0.0</span>
+        <h1>插件开发指南</h1>
+        <p>面向为 PixiuCut 开发草稿工具的第三方开发者。按本文的方法名、字段与错误码实现即可，无需阅读应用源码。</p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="container">
+        <div class="docs-layout">
+          <!-- TOC -->
+          <aside class="docs-toc">
+            <h4>目录</h4>
+            <ul>
+              <li><a href="#overview">一、插件能做什么</a></li>
+              <li><a href="#quickstart">二、五分钟示例</a></li>
+              <li><a href="#package">三、插件包与 manifest</a></li>
+              <li><a href="#permissions">四、权限模型</a></li>
+              <li><a href="#api">五、SDK API 速查</a></li>
+              <li><a href="#draft">六、草稿格式</a></li>
+              <li><a href="#errors">七、错误码</a></li>
+              <li><a href="#publish">八、发布</a></li>
+              <li><a href="#faq">九、常见问题</a></li>
+            </ul>
+          </aside>
+
+          <!-- Content -->
+          <div class="docs-content">
+            <h2 id="overview">一、插件能做什么</h2>
+            <p>插件是一个<strong>草稿转换器</strong>：读取用户草稿，写出一个或多个新草稿。需要成片时，可以委托应用把已保存的草稿送进<strong>任务中心</strong>导出。</p>
+            <pre class="code"><code>输入 = 草稿（以及用户自己的素材文件）
+输出 = 新草稿（一个或多个）
+可选 = 委托应用把草稿导出到用户指定的目录</code></pre>
+            <p>适合的场景：</p>
+            <ul>
+              <li>用一条模板草稿批量替换素材，生成多个变体，再排队导出</li>
+              <li>读取视频信息或自备音频，调用自己的语音识别服务，写回带字幕的新草稿</li>
+              <li>把其它软件的工程描述转成 PixiuCut 草稿</li>
+              <li>把草稿同步到自己的存储</li>
+            </ul>
+            <div class="callout">插件页面跑在独立窗口里，不进入剪辑器时间线，也不提供自定义滤镜/转场/编码器。媒体探测、抽音轨、批量切片、导出均由应用代为完成，插件不要自己连接剪辑引擎。</div>
+
+            <h2 id="quickstart">二、五分钟示例</h2>
+            <p>一个最小插件只需要两个文件：</p>
+            <pre class="code"><code>hello-plugin/
+├── manifest.json
+└── index.html</code></pre>
+            <h3>manifest.json</h3>
+            <pre class="code"><code>{
+  "id": "com.example.hello",
+  "name": "Hello Plugin",
+  "version": "1.0.0",
+  "description": "我的第一个插件",
+  "author": "Your Name",
+  "main": "index.html",
+  "sdkVersion": "^1.0.0",
+  "permissions": ["draft.read", "draft.write", "ui.notify"],
+  "slots": [{ "id": "home.shortcut", "label": "Hello" }],
+  "window": { "width": 640, "height": 480 }
+}</code></pre>
+            <h3>在页面里直接使用全局对象 PixiuCutPlugin</h3>
+            <pre class="code"><code>const sdk = PixiuCutPlugin
+
+async function init() {
+  const drafts = await sdk.draft.list()
+  console.log(`已连接，当前有 ${drafts.length} 个草稿`)
+  await sdk.ready()
+}
+
+async function makeVariant() {
+  const drafts = await sdk.draft.list()
+  if (!drafts.length) return sdk.ui.notify('请先创建一个草稿', 'warning')
+  const { blob } = await sdk.draft.readBlob(drafts[0].id)
+  await sdk.draft.create(drafts[0].name + '-副本', blob)
+  await sdk.ui.notify('已生成副本', 'success')
+}
+
+init().catch((e) => console.error(e))</code></pre>
+            <div class="callout warn">插件包不要自带 SDK，HTML 里也不要写 <code>&lt;script src="sdk.js"&gt;</code>。应用的本地页面服务会在返回插件 HTML 时自动注入 <code>/sdk.js</code>。页面运行在沙箱 iframe（<code>sandbox="allow-scripts allow-forms allow-modals"</code>，不含 <code>allow-same-origin</code>）中，因此不能用 <code>localStorage</code>，配置请写到 <code>fs.dataDir()</code>。</div>
+
+            <h2 id="package">三、插件包与 manifest</h2>
+            <p>没有规定的构建工具。原生 HTML，或 React / Vue / Svelte 构建出的单个入口页都可以。构建时把 <code>PixiuCutPlugin</code> 当作外部全局变量，不要打进包里。静态资源使用相对插件根的路径。</p>
+            <h3>manifest 字段</h3>
+            <table>
+              <thead><tr><th>字段</th><th>要求</th></tr></thead>
+              <tbody>
+                <tr><td><code>id</code></td><td>必填。反向域名，全局唯一，安装目录名与之相同</td></tr>
+                <tr><td><code>name</code> / <code>version</code> / <code>author</code></td><td>必填。<code>version</code> 为 semver</td></tr>
+                <tr><td><code>main</code></td><td>入口 HTML，默认 <code>index.html</code></td></tr>
+                <tr><td><code>sdkVersion</code></td><td>目标 SDK，当前写 <code>^1.0.0</code></td></tr>
+                <tr><td><code>appVersion</code></td><td>可选。兼容的应用版本范围</td></tr>
+                <tr><td><code>permissions</code></td><td>见第四节，安装时展示给用户</td></tr>
+                <tr><td><code>slots</code></td><td>首页入口，<code>id</code> 固定 <code>home.shortcut</code>，可带相对路径 <code>icon</code></td></tr>
+                <tr><td><code>window</code></td><td>可选。默认 800×600、可调整，下限 480×360</td></tr>
+                <tr><td><code>mcp</code></td><td>可选。向本机助手暴露工具</td></tr>
+              </tbody>
+            </table>
+
+            <h2 id="permissions">四、权限模型</h2>
+            <p>安装时用户会看到权限说明，标为<strong>高危</strong>的项会单独提示。只声明完成功能所需要的权限。</p>
+            <table>
+              <thead><tr><th>权限</th><th>风险</th><th>可调用</th></tr></thead>
+              <tbody>
+                <tr><td><code>draft.read</code></td><td>低</td><td>list、readBlob、draft.changed</td></tr>
+                <tr><td><code>draft.write</code></td><td>中</td><td>create、writeBlob、remove、rename、stageMedia</td></tr>
+                <tr><td><code>fs.read</code> / <code>fs.write</code></td><td>高</td><td>文件读写</td></tr>
+                <tr><td><code>net.fetch</code> / <code>net.local</code></td><td>高</td><td>外网 / 本机回环请求</td></tr>
+                <tr><td><code>media.probe</code></td><td>低</td><td>probe、extractAudio、getEncodeCaps</td></tr>
+                <tr><td><code>media.render</code></td><td>高</td><td>批量切片 startSplitJob / cancelSplitJob</td></tr>
+                <tr><td><code>export.render</code></td><td>高</td><td>enqueue、cancel、getStatus 及导出事件</td></tr>
+                <tr><td><code>process.spawn</code></td><td>高</td><td>启动外部进程</td></tr>
+                <tr><td><code>ui.notify</code> / <code>ui.pickFiles</code> / <code>ui.pickDirectory</code></td><td>低</td><td>通知、选文件/目录</td></tr>
+              </tbody>
+            </table>
+            <p>以下方法默认开放，不必声明权限：<code>plugin.ready/resize/close/log/packageDir/setBusy</code>、<code>ui.getAppInfo</code>、<code>license.isActive/trialDaysLeft</code>、<code>events.subscribe</code>、<code>fs.dataDir</code> 及其读写。</p>
+
+            <h2 id="api">五、SDK API 速查</h2>
+            <p>全局对象 <code>window.PixiuCutPlugin</code>，异步方法返回 Promise，失败抛出 <code>PluginError</code>（<code>err.code</code> 为错误码）。默认单次调用 60 秒超时。</p>
+            <h3>草稿</h3>
+            <pre class="code"><code>const drafts = await PixiuCutPlugin.draft.list()
+// { id, name, dir, created, modified, durationUs?, thumbnail, type }
+
+const { blob, version } = await PixiuCutPlugin.draft.readBlob(draftId)
+const summary = await PixiuCutPlugin.draft.create(name, blob?)  // 传 blob 则以它为模板
+const res = await PixiuCutPlugin.draft.writeBlob(id, blob, version) // version 用于冲突检测
+await PixiuCutPlugin.draft.remove(id)
+await PixiuCutPlugin.draft.rename(id, newName)
+const { path } = await PixiuCutPlugin.draft.stageMedia(draftId, srcPath)</code></pre>
+            <h3>媒体探测</h3>
+            <pre class="code"><code>const info = await PixiuCutPlugin.media.probe(filePath)
+// { success, type, width, height, durationUs, frameRate, codec }
+const audio = await PixiuCutPlugin.media.extractAudio(filePath, { format: 'wav' })</code></pre>
+            <h3>委托导出</h3>
+            <pre class="code"><code>const { queueId } = await PixiuCutPlugin.export.enqueue(
+  [{ draftId: 'proj_…', outputDir: 'D:/exports', fileName: '成片标题' }],
+  { config: { format: 'mp4', vcodec: 'libx264', resolution: 1080, frameRate: 30 } },
+)
+PixiuCutPlugin.on('export.progress', ({ draftId, percent }) => {})
+PixiuCutPlugin.on('export.queueIdle', ({ queueId }) => {})</code></pre>
+            <h3>界面与生命周期</h3>
+            <pre class="code"><code>await PixiuCutPlugin.ui.notify('操作完成', 'success')
+const files = await PixiuCutPlugin.ui.pickFiles({ multiple: true })
+const dir = await PixiuCutPlugin.ui.pickDirectory()
+await PixiuCutPlugin.ready()
+await PixiuCutPlugin.setBusy(true)   // 长任务期间
+const root = await PixiuCutPlugin.packageDir()
+const data = await PixiuCutPlugin.fs.dataDir()  // 免权限读写</code></pre>
+            <div class="callout">还提供 <code>fs.*</code> 文件操作、<code>net.fetch</code> 网络代理、<code>process.*</code> 外部进程、<code>media.startSplitJob</code> 批量切片、<code>mcp.*</code> 向本机助手登记工具等能力，完整签名见随软件分发的《插件开发指南》原文。</div>
+
+            <h2 id="draft">六、草稿格式</h2>
+            <p>草稿 blob 是 JSON 字符串，<code>format_version</code> 固定为 <code>"1.2"</code>。时间字段单位一律是<strong>微秒（µs）</strong>；<code>project_info.created/modified/last_opened</code> 是<strong>秒</strong>级 Unix 时间。</p>
+            <pre class="code"><code>{
+  "format_version": "1.2",
+  "project_info": { "id": "proj_…", "name": "我的视频", "created": 1700000000,
+                    "modified": 1700000000, "duration": 0, "status": "editing" },
+  "project_settings": {
+    "video": { "width": 1080, "height": 1920, "frame_rate": 30 },
+    "audio": { "sample_rate": 48000, "channels": 2 }
+  },
+  "tracks": [
+    { "id": "track_1", "type": "video", "name": "主视频轨",
+      "main_track": 1, "clips": [] }
+  ]
+}</code></pre>
+            <p><code>clip.type</code> 为整数：1 视频、2 音频、3 图片、4 文本、5 纯色、6 字幕。媒体片段需备齐 <code>name / type / start_time / in_point / out_point / media_duration / duration</code>，其中 <code>duration = (out_point - in_point) / speed_factor</code>。字幕轨只放一个容器片段（<code>type:6</code>，<code>subtitle_container:true</code>），每句台词是 <code>subtitle_track.items</code> 里的一条。</p>
+
+            <h2 id="errors">七、错误码</h2>
+            <table>
+              <thead><tr><th>错误码</th><th>含义</th></tr></thead>
+              <tbody>
+                <tr><td><code>PERMISSION_DENIED</code></td><td>未声明或用户未授予该权限</td></tr>
+                <tr><td><code>UNKNOWN_METHOD</code></td><td>方法或事件名不存在</td></tr>
+                <tr><td><code>NOT_FOUND</code></td><td>草稿、文件或进程句柄不存在</td></tr>
+                <tr><td><code>DRAFT_BUSY</code> / <code>EXPORT_BUSY</code></td><td>草稿被剪辑器打开 / 剪辑器已打开不能入队</td></tr>
+                <tr><td><code>CONFLICT</code></td><td>etag 冲突，或目标文件已存在</td></tr>
+                <tr><td><code>INVALID_DRAFT</code></td><td>JSON 无法解析或格式非法</td></tr>
+                <tr><td><code>PAYLOAD_TOO_LARGE</code></td><td>超过单次体积上限</td></tr>
+                <tr><td><code>ENGINE_UNAVAILABLE</code></td><td>剪辑引擎未就绪</td></tr>
+                <tr><td><code>TIMEOUT</code></td><td>超过 SDK 默认 60 秒</td></tr>
+                <tr><td><code>INTERNAL</code></td><td>应用内部错误</td></tr>
+              </tbody>
+            </table>
+
+            <h2 id="publish">八、发布</h2>
+            <p>打成一个 zip：解压后的根目录就是 <code>manifest.json</code> 和入口 HTML，不要多包一层，体积不超过 <strong>80MB</strong>。</p>
+            <ul>
+              <li><strong>从 zip 安装</strong>：插件管理 → 已安装 →「从 zip 安装」</li>
+              <li><strong>本地目录</strong>：以 <code>manifest.id</code> 为文件夹名放到应用插件目录，点「刷新」</li>
+              <li><strong>发现目录</strong>：向官方目录维护者提供记录（id、name、latestVersion、downloadUrl 等），用户在「插件 → 发现」中安装</li>
+            </ul>
+            <p>安装后默认启用，首页出现快捷入口，不必重启。更新时安装目录被替换，<code>fs.dataDir()</code> 数据目录默认保留。</p>
+
+            <h2 id="faq">九、常见问题</h2>
+            <h3>可以用 React / Vue / Svelte 吗？</h3>
+            <p>可以。构建产物是一个入口 HTML。不要把 SDK 打进包，将 <code>PixiuCutPlugin</code> 标为外部全局变量。</p>
+            <h3>可以调用 Node.js 吗？</h3>
+            <p>不可以。系统能力都走 SDK 方法。需要 ffmpeg 或自带程序时，用 <code>process.spawn</code> 启动绝对路径，或把程序放进插件包内。</p>
+            <h3>能直接连剪辑引擎吗？</h3>
+            <p>不能。探测、抽音轨、切片和导出都通过 SDK，由应用代为调用。</p>
+            <h3>插件之间能互相调用吗？</h3>
+            <p>不能。交接方式是插件 A 创建草稿，用户再打开插件 B 读取它。</p>
+
+            <div class="callout" style="margin-top:32px">本页为速查版，完整 SDK（含 <code>fs</code>/<code>net</code>/<code>process</code>/<code>media</code>/<code>mcp</code> 全部方法签名与约束）随软件分发。<a href="index.html#download">下载 PixiuCut</a> 后即可查阅并在插件窗口按 <code>F12</code> 调试。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img src="assets/img/logo.png" alt="PixiuCut" class="brand-logo" />
+        <div><div class="brand-name">PixiuCut</div><p class="footer-tag">本地桌面视频剪辑器</p></div>
+      </div>
+      <nav class="footer-links">
+        <a href="index.html#features">功能</a>
+        <a href="tutorials.html">教程</a>
+        <a href="plugins-dev.html">插件开发</a>
+        <a href="pricing.html">购买</a>
+        <a href="en/plugins-dev.html" hreflang="en">English</a>
+      </nav>
+    </div>
+    <div class="container footer-bottom" id="footer-bottom"><span>© 2026 PixiuCut. 保留所有权利。</span></div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

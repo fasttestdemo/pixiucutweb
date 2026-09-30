@@ -1,0 +1,18 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# 依赖（本站点为纯静态，无需构建；如后续引入构建工具再启用）
+node_modules/
+dist/
+docs/
+
+# 安装包等大文件不要提交进仓库（放 OSS / Releases）
+*.exe
+*.dmg
+*.zip
+*.7z
+*.AppImage

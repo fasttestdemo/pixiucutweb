@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>教程演示 · PixiuCut 视频剪辑器</title>
+  <meta name="description" content="PixiuCut 使用教程与演示视频：从安装、导入素材、多轨剪辑、字幕特效到导出成片，跟着视频快速上手短视频剪辑。" />
+  <meta name="keywords" content="PixiuCut教程,视频剪辑教程,短视频剪辑入门,字幕教程,导出教程" />
+  <link rel="canonical" href="https://pixiucut.meitool.cn/tutorials.html" />
+  <link rel="alternate" hreflang="zh-CN" href="https://pixiucut.meitool.cn/tutorials.html" />
+  <link rel="alternate" hreflang="en" href="https://pixiucut.meitool.cn/en/tutorials.html" />
+  <link rel="alternate" hreflang="x-default" href="https://pixiucut.meitool.cn/tutorials.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="教程演示 · PixiuCut" />
+  <meta property="og:description" content="PixiuCut 使用教程与演示视频，跟着视频快速上手短视频剪辑。" />
+  <meta property="og:url" content="https://pixiucut.meitool.cn/tutorials.html" />
+  <link rel="icon" type="image/png" href="assets/img/logo-32.png" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header" id="siteHeader">
+    <div class="container header-inner">
+      <a class="brand" href="index.html" aria-label="PixiuCut">
+        <img src="assets/img/logo.png" alt="PixiuCut Logo" class="brand-logo" />
+        <span class="brand-name">PixiuCut</span>
+      </a>
+      <nav class="nav" id="mainNav">
+        <a href="index.html#features">功能</a>
+        <a href="tutorials.html">教程</a>
+        <a href="plugins-dev.html">插件开发</a>
+        <a href="pricing.html">购买</a>
+        <a href="index.html#download">下载</a>
+      </nav>
+      <div class="header-actions">
+        <a class="lang-toggle" href="en/tutorials.html" hreflang="en" aria-label="Switch to English">EN</a>
+        <a href="index.html#download" class="btn btn-primary btn-sm">立即下载</a>
+        <button class="nav-burger" id="navBurger" aria-label="菜单"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container"><div class="breadcrumb"><a href="index.html">首页</a><span>/</span>教程演示</div></div>
+
+    <section class="page-hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="container">
+        <span class="pill">视频教程</span>
+        <h1>跟着视频，快速上手</h1>
+        <p>从安装到导出成片，一步步带你熟悉 PixiuCut 的核心工作流。视频托管于哔哩哔哩，点击即可播放。</p>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:24px">
+      <div class="container">
+        <!--
+          B 站视频接入说明：
+          拿到视频后，把每个 .video-frame 里的 <div class="video-placeholder">…</div>
+          替换成下面这段（把 BVxxxxxxxxxx 换成你的 BV 号）：
+
+          <iframe src="//player.bilibili.com/player.html?bvid=BVxxxxxxxxxx&page=1&high_quality=1&danmaku=0&autoplay=0"
+                  scrolling="no" frameborder="no" framespacing="0" allowfullscreen="true"
+                  loading="lazy" title="视频标题"></iframe>
+        -->
+        <div class="video-grid">
+          <article class="video-card">
+            <div class="video-frame">
+                  <iframe src="//player.bilibili.com/player.html?bvid=BV1ctb56pEQ1&page=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"> </iframe>
+            </div>
+            <div class="video-meta"><h3>批量混剪插件演示</h3><p>通过批量混剪插件，可以快速将多个视频混剪成一个视频。</p></div>
+          </article>
+
+          <article class="video-card">
+            <div class="video-frame">
+              <div class="video-placeholder">
+                <iframe src="//player.bilibili.com/player.html?bvid=BV1MJYr67EHi&page=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"> </iframe>
+              </iframe>
+            </div>
+            <div class="video-meta"><h3>PixiuCut Mcp 演示</h3><p>通过 PixiuCut Mcp，让本地AI模型为你服务。</p></div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-band">
+      <div class="container cta-inner">
+        <h2>想开发自己的插件？</h2>
+        <p>查看官方插件开发指南，几分钟跑通第一个插件。</p>
+        <a href="plugins-dev.html" class="btn btn-primary btn-lg">阅读插件开发指南</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img src="assets/img/logo.png" alt="PixiuCut" class="brand-logo" />
+        <div><div class="brand-name">PixiuCut</div><p class="footer-tag">本地桌面视频剪辑器</p></div>
+      </div>
+      <nav class="footer-links">
+        <a href="index.html#features">功能</a>
+        <a href="tutorials.html">教程</a>
+        <a href="plugins-dev.html">插件开发</a>
+        <a href="pricing.html">购买</a>
+        <a href="en/tutorials.html" hreflang="en">English</a>
+      </nav>
+    </div>
+    <div class="container footer-bottom" id="footer-bottom"><span>© 2026 PixiuCut. 保留所有权利。</span></div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
