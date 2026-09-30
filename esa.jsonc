@@ -1,0 +1,8 @@
+{
+  "name": "pixiucutweb",
+  "installCommand": "",
+  "buildCommand": "",
+  "assets": {
+    "directory": "."
+  }
+}
