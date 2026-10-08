@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>插件开发指南 · PixiuCut SDK 1.0.0</title>
-  <meta name="description" content="PixiuCut 插件开发指南：基于官方 SDK 1.0.0 开发草稿工具插件。包含五分钟示例、manifest 清单、权限模型、SDK API、草稿格式与错误码，按文档即可开发发布。" />
+  <meta name="description" content="PixiuCut 插件开发指南（SDK 1.0.0）：五分钟示例、manifest、权限、草稿 / 文件 / 网络 / 素材 / 导出 / 进程 / 本机语音识别 API、草稿格式、错误码与发布约定。" />
   <meta name="keywords" content="PixiuCut插件开发,插件SDK,草稿转换器,PixiuCutPlugin,插件API,视频剪辑插件" />
   <link rel="canonical" href="https://pixiucut.meitool.cn/plugins-dev.html" />
   <link rel="alternate" hreflang="zh-CN" href="https://pixiucut.meitool.cn/plugins-dev.html" />
@@ -12,7 +12,7 @@
   <link rel="alternate" hreflang="x-default" href="https://pixiucut.meitool.cn/plugins-dev.html" />
   <meta property="og:type" content="article" />
   <meta property="og:title" content="插件开发指南 · PixiuCut" />
-  <meta property="og:description" content="基于官方 SDK 1.0.0 开发 PixiuCut 草稿工具插件。" />
+  <meta property="og:description" content="按 SDK 1.0.0 的方法名、字段和错误码开发 PixiuCut 草稿工具插件。" />
   <meta property="og:url" content="https://pixiucut.meitool.cn/plugins-dev.html" />
   <link rel="icon" type="image/png" href="assets/img/logo-32.png" />
   <link rel="stylesheet" href="assets/css/style.css" />
@@ -47,30 +47,46 @@
       <div class="container">
         <span class="pill pill-accent">SDK 1.0.0</span>
         <h1>插件开发指南</h1>
-        <p>面向为 PixiuCut 开发草稿工具的第三方开发者。按本文的方法名、字段与错误码实现即可，无需阅读应用源码。</p>
+        <p>面向为 PixiuCut 开发草稿工具的第三方开发者。协议为 SDK <code>1.0.0</code>（<code>manifest.sdkVersion</code> 写 <code>^1.0.0</code>）。按本文的方法名、字段和错误码实现即可，不必阅读应用源码。</p>
       </div>
     </section>
 
     <section class="section" style="padding-top:24px">
       <div class="container">
         <div class="docs-layout">
-          <!-- TOC -->
           <aside class="docs-toc">
             <h4>目录</h4>
             <ul>
               <li><a href="#overview">一、插件能做什么</a></li>
               <li><a href="#quickstart">二、五分钟示例</a></li>
-              <li><a href="#package">三、插件包与 manifest</a></li>
-              <li><a href="#permissions">四、权限模型</a></li>
-              <li><a href="#api">五、SDK API 速查</a></li>
+              <li><a href="#package">三、插件包</a></li>
+              <li><a href="#permissions">四、权限</a></li>
+              <li>
+                <a href="#api">五、SDK API</a>
+                <ul>
+                  <li><a href="#api-draft">草稿</a></li>
+                  <li><a href="#api-fs">文件</a></li>
+                  <li><a href="#api-net">网络</a></li>
+                  <li><a href="#api-media">素材</a></li>
+                  <li><a href="#api-ui">界面</a></li>
+                  <li><a href="#api-export">委托导出</a></li>
+                  <li><a href="#api-process">外部进程</a></li>
+                  <li><a href="#api-events">事件</a></li>
+                  <li><a href="#api-lifecycle">生命周期</a></li>
+                  <li><a href="#api-mcp">助手工具</a></li>
+                  <li><a href="#api-errors">错误处理</a></li>
+                  <li><a href="#api-asr">本机语音识别</a></li>
+                </ul>
+              </li>
               <li><a href="#draft">六、草稿格式</a></li>
-              <li><a href="#errors">七、错误码</a></li>
+              <li><a href="#debug">七、调试</a></li>
               <li><a href="#publish">八、发布</a></li>
-              <li><a href="#faq">九、常见问题</a></li>
+              <li><a href="#practices">九、实践建议</a></li>
+              <li><a href="#faq">十、常见问题</a></li>
+              <li><a href="#protocol">附录：消息格式</a></li>
             </ul>
           </aside>
 
-          <!-- Content -->
           <div class="docs-content">
             <h2 id="overview">一、插件能做什么</h2>
             <p>插件是一个<strong>草稿转换器</strong>：读取用户草稿，写出一个或多个新草稿。需要成片时，可以委托应用把已保存的草稿送进<strong>任务中心</strong>导出。</p>
@@ -80,18 +96,18 @@
             <p>适合的场景：</p>
             <ul>
               <li>用一条模板草稿批量替换素材，生成多个变体，再排队导出</li>
-              <li>读取视频信息或自备音频，调用自己的语音识别服务，写回带字幕的新草稿</li>
+              <li>读取视频信息或自备音频，调用自己的语音识别服务，也可以把素材交给应用的本机语音模型，写回带字幕的新草稿</li>
               <li>把其它软件的工程描述转成 PixiuCut 草稿</li>
               <li>把草稿同步到自己的存储</li>
             </ul>
-            <div class="callout">插件页面跑在独立窗口里，不进入剪辑器时间线，也不提供自定义滤镜/转场/编码器。媒体探测、抽音轨、批量切片、导出均由应用代为完成，插件不要自己连接剪辑引擎。</div>
+            <div class="callout">插件页面跑在独立窗口里。它不进入剪辑器时间线，也不提供自定义滤镜、转场或编码器。导出调用的是应用已有的导出流程。媒体探测、抽音轨、批量切片和本机语音识别同样由应用代为完成，插件不要自己连接剪辑引擎。</div>
 
             <h2 id="quickstart">二、五分钟示例</h2>
-            <p>一个最小插件只需要两个文件：</p>
+            <h3 id="quickstart-min">最小插件</h3>
             <pre class="code"><code>hello-plugin/
 ├── manifest.json
 └── index.html</code></pre>
-            <h3>manifest.json</h3>
+            <p><strong>manifest.json</strong></p>
             <pre class="code"><code>{
   "id": "com.example.hello",
   "name": "Hello Plugin",
@@ -101,152 +117,899 @@
   "main": "index.html",
   "sdkVersion": "^1.0.0",
   "permissions": ["draft.read", "draft.write", "ui.notify"],
-  "slots": [{ "id": "home.shortcut", "label": "Hello" }],
+  "slots": [
+    { "id": "home.shortcut", "label": "Hello" }
+  ],
   "window": { "width": 640, "height": 480 }
 }</code></pre>
-            <h3>在页面里直接使用全局对象 PixiuCutPlugin</h3>
-            <pre class="code"><code>const sdk = PixiuCutPlugin
+            <p><strong>index.html</strong> — 页面里直接使用全局对象 <code>PixiuCutPlugin</code>。插件包不要自带 SDK，HTML 里也不要写 <code>&lt;script src="sdk.js"&gt;</code>。</p>
+            <pre class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html lang="zh-CN"&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8" /&gt;
+  &lt;title&gt;Hello Plugin&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h2&gt;Hello PixiuCut&lt;/h2&gt;
+  &lt;p id="info"&gt;加载中…&lt;/p&gt;
+  &lt;button id="btn"&gt;生成变体草稿&lt;/button&gt;
+  &lt;script&gt;
+    const sdk = PixiuCutPlugin
 
-async function init() {
-  const drafts = await sdk.draft.list()
-  console.log(`已连接，当前有 ${drafts.length} 个草稿`)
-  await sdk.ready()
-}
+    async function init() {
+      const drafts = await sdk.draft.list()
+      document.getElementById('info').textContent =
+        `已连接，当前有 ${drafts.length} 个草稿`
+      await sdk.ready()
+    }
 
-async function makeVariant() {
-  const drafts = await sdk.draft.list()
-  if (!drafts.length) return sdk.ui.notify('请先创建一个草稿', 'warning')
-  const { blob } = await sdk.draft.readBlob(drafts[0].id)
-  await sdk.draft.create(drafts[0].name + '-副本', blob)
-  await sdk.ui.notify('已生成副本', 'success')
-}
+    document.getElementById('btn').onclick = async () => {
+      const drafts = await sdk.draft.list()
+      if (!drafts.length) {
+        await sdk.ui.notify('请先创建一个草稿', 'warning')
+        return
+      }
+      const { blob } = await sdk.draft.readBlob(drafts[0].id)
+      const name = drafts[0].name + '-副本'
+      await sdk.draft.create(name, blob)
+      await sdk.ui.notify('已生成: ' + name, 'success')
+    }
 
-init().catch((e) => console.error(e))</code></pre>
-            <div class="callout warn">插件包不要自带 SDK，HTML 里也不要写 <code>&lt;script src="sdk.js"&gt;</code>。应用的本地页面服务会在返回插件 HTML 时自动注入 <code>/sdk.js</code>。页面运行在沙箱 iframe（<code>sandbox="allow-scripts allow-forms allow-modals"</code>，不含 <code>allow-same-origin</code>）中，因此不能用 <code>localStorage</code>，配置请写到 <code>fs.dataDir()</code>。</div>
+    init().catch((e) => {
+      document.getElementById('info').textContent = '错误: ' + e.message
+    })
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
 
-            <h2 id="package">三、插件包与 manifest</h2>
-            <p>没有规定的构建工具。原生 HTML，或 React / Vue / Svelte 构建出的单个入口页都可以。构建时把 <code>PixiuCutPlugin</code> 当作外部全局变量，不要打进包里。静态资源使用相对插件根的路径。</p>
-            <h3>manifest 字段</h3>
-            <table>
-              <thead><tr><th>字段</th><th>要求</th></tr></thead>
-              <tbody>
-                <tr><td><code>id</code></td><td>必填。反向域名，全局唯一，安装目录名与之相同</td></tr>
-                <tr><td><code>name</code> / <code>version</code> / <code>author</code></td><td>必填。<code>version</code> 为 semver</td></tr>
-                <tr><td><code>main</code></td><td>入口 HTML，默认 <code>index.html</code></td></tr>
-                <tr><td><code>sdkVersion</code></td><td>目标 SDK，当前写 <code>^1.0.0</code></td></tr>
-                <tr><td><code>appVersion</code></td><td>可选。兼容的应用版本范围</td></tr>
-                <tr><td><code>permissions</code></td><td>见第四节，安装时展示给用户</td></tr>
-                <tr><td><code>slots</code></td><td>首页入口，<code>id</code> 固定 <code>home.shortcut</code>，可带相对路径 <code>icon</code></td></tr>
-                <tr><td><code>window</code></td><td>可选。默认 800×600、可调整，下限 480×360</td></tr>
-                <tr><td><code>mcp</code></td><td>可选。向本机助手暴露工具</td></tr>
-              </tbody>
-            </table>
+            <h3 id="quickstart-sdk">SDK 如何进入页面</h3>
+            <p>打开插件时，应用的本地页面服务会：</p>
+            <ol>
+              <li>提供 <code>/sdk.js</code></li>
+              <li>在返回插件 HTML 时插入该脚本</li>
+              <li>去掉页面里手写的 <code>sdk.js</code> 引用，避免加载两次</li>
+            </ol>
+            <p>插件窗口里的页面运行在沙箱 iframe 中，属性为 <code>sandbox="allow-scripts allow-forms allow-modals"</code>，不带 <code>allow-same-origin</code>。因此：</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>现象</th><th>含义</th></tr></thead>
+                <tbody>
+                  <tr><td>页面来源是不透明源（<code>Origin: null</code>）</td><td>与外壳页面不同源</td></tr>
+                  <tr><td>外壳读不到 iframe 里的文档</td><td>不能靠外壳往页面里插入脚本；SDK 必须由页面服务在返回 HTML 时注入</td></tr>
+                  <tr><td>不能用 <code>localStorage</code></td><td>配置请写到 <code>fs.dataDir()</code></td></tr>
+                  <tr><td><code>window.confirm</code> / <code>alert</code> 可用</td><td>沙箱带了 <code>allow-modals</code>。自己做确认框时，不要假设系统对话框一定出现</td></tr>
+                </tbody>
+              </table>
+            </div>
 
-            <h2 id="permissions">四、权限模型</h2>
-            <p>安装时用户会看到权限说明，标为<strong>高危</strong>的项会单独提示。只声明完成功能所需要的权限。</p>
-            <table>
-              <thead><tr><th>权限</th><th>风险</th><th>可调用</th></tr></thead>
-              <tbody>
-                <tr><td><code>draft.read</code></td><td>低</td><td>list、readBlob、draft.changed</td></tr>
-                <tr><td><code>draft.write</code></td><td>中</td><td>create、writeBlob、remove、rename、stageMedia</td></tr>
-                <tr><td><code>fs.read</code> / <code>fs.write</code></td><td>高</td><td>文件读写</td></tr>
-                <tr><td><code>net.fetch</code> / <code>net.local</code></td><td>高</td><td>外网 / 本机回环请求</td></tr>
-                <tr><td><code>media.probe</code></td><td>低</td><td>probe、extractAudio、getEncodeCaps</td></tr>
-                <tr><td><code>media.render</code></td><td>高</td><td>批量切片 startSplitJob / cancelSplitJob</td></tr>
-                <tr><td><code>export.render</code></td><td>高</td><td>enqueue、cancel、getStatus 及导出事件</td></tr>
-                <tr><td><code>process.spawn</code></td><td>高</td><td>启动外部进程</td></tr>
-                <tr><td><code>ui.notify</code> / <code>ui.pickFiles</code> / <code>ui.pickDirectory</code></td><td>低</td><td>通知、选文件/目录</td></tr>
-              </tbody>
-            </table>
-            <p>以下方法默认开放，不必声明权限：<code>plugin.ready/resize/close/log/packageDir/setBusy</code>、<code>ui.getAppInfo</code>、<code>license.isActive/trialDaysLeft</code>、<code>events.subscribe</code>、<code>fs.dataDir</code> 及其读写。</p>
+            <h3 id="quickstart-run">在应用里运行</h3>
+            <ol>
+              <li>将插件打成 zip（解压后根目录就是 <code>manifest.json</code>），或把目录放到应用的插件目录下，文件夹名等于 <code>manifest.id</code></li>
+              <li>打开 PixiuCut → 插件管理 →「从 zip 安装」，或放好目录后点「刷新」</li>
+              <li>确认权限后，首页会出现 <code>slots</code> 里声明的入口</li>
+              <li>在插件窗口按 <code>F12</code> 查看页面控制台。<code>PixiuCutPlugin.log()</code> 的输出带有 <code>[plugin:你的id]</code> 前缀</li>
+            </ol>
+            <p>改了 HTML 或脚本后，关掉插件窗口再打开。窗口每次打开都是新页面，未写入 <code>fs.dataDir()</code> 的界面状态不会保留。已授予的权限不会因此重问。</p>
+            <p>zip 上限 <strong>80MB</strong>。</p>
 
-            <h2 id="api">五、SDK API 速查</h2>
-            <p>全局对象 <code>window.PixiuCutPlugin</code>，异步方法返回 Promise，失败抛出 <code>PluginError</code>（<code>err.code</code> 为错误码）。默认单次调用 60 秒超时。</p>
-            <h3>草稿</h3>
+            <h2 id="package">三、插件包</h2>
+            <h3 id="package-layout">目录</h3>
+            <pre class="code"><code>com.example.myplugin/
+├── manifest.json
+├── index.html
+└── assets/
+    ├── icon.png
+    └── style.css</code></pre>
+            <p>没有规定的构建工具。原生 HTML，或 React / Vue / Svelte 构建出的单个入口页都可以。构建时把 <code>PixiuCutPlugin</code> 当作全局变量，不要把它打进包里。静态资源使用相对插件根的路径，例如 <code>assets/style.css</code>。</p>
+
+            <h3 id="package-manifest">manifest.json</h3>
+            <pre class="code"><code>{
+  "id": "com.example.myplugin",
+  "name": "我的插件",
+  "version": "1.0.0",
+  "description": "插件功能简述",
+  "author": "作者名",
+  "homepage": "https://example.com",
+  "main": "index.html",
+  "sdkVersion": "^1.0.0",
+  "appVersion": "&gt;=1.1.0",
+  "permissions": ["draft.read", "draft.write"],
+  "slots": [
+    { "id": "home.shortcut", "label": "我的插件", "icon": "assets/icon.png" }
+  ],
+  "window": {
+    "width": 800,
+    "height": 600,
+    "resizable": true,
+    "minWidth": 480,
+    "minHeight": 360
+  }
+}</code></pre>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>字段</th><th>要求</th></tr></thead>
+                <tbody>
+                  <tr><td><code>id</code></td><td>必填。反向域名，全局唯一，安装目录名与之相同</td></tr>
+                  <tr><td><code>name</code> / <code>version</code> / <code>author</code></td><td>必填。<code>version</code> 为 semver</td></tr>
+                  <tr><td><code>description</code> / <code>homepage</code></td><td>可选</td></tr>
+                  <tr><td><code>main</code></td><td>入口 HTML，默认 <code>index.html</code></td></tr>
+                  <tr><td><code>sdkVersion</code></td><td>目标 SDK，当前写 <code>^1.0.0</code></td></tr>
+                  <tr><td><code>appVersion</code></td><td>可选。兼容的应用版本范围</td></tr>
+                  <tr><td><code>requiredFeature</code></td><td>可选。付费功能键。免费插件省略</td></tr>
+                  <tr><td><code>permissions</code></td><td>见<a href="#permissions">第四节</a>。安装时展示给用户</td></tr>
+                  <tr><td><code>slots</code></td><td>首页入口。<code>id</code> 固定为 <code>home.shortcut</code>。<code>icon</code> 为相对插件根的 png / svg / jpg / webp；省略或加载失败时显示默认图标</td></tr>
+                  <tr><td><code>window</code></td><td>可选。默认 800×600、可调整。宽高下限由应用钳在 480×360</td></tr>
+                  <tr><td><code>sdkChecksum</code></td><td>可选，形如 <code>sha256:…</code>。只用于发现 SDK 副本不一致，不构成安全边界</td></tr>
+                  <tr><td><code>mcp</code></td><td>可选。向本机助手暴露工具，见下方</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 id="package-mcp">向本机助手声明工具</h3>
+            <p>插件不要自己监听端口，也不要实现 MCP 协议。在清单里声明工具；用户打开插件并完成登记后，由应用把调用转进页面。</p>
+            <pre class="code"><code>{
+  "mcp": {
+    "tools": [
+      {
+        "name": "sort_images",
+        "description": "从源目录筛选图片。路径由调用方给出。",
+        "inputSchema": {
+          "type": "object",
+          "required": ["sourceDir", "destDir"],
+          "properties": {
+            "sourceDir": { "type": "string" },
+            "destDir": { "type": "string" }
+          }
+        }
+      }
+    ]
+  }
+}</code></pre>
+            <p>也可以用 <code>mcp.toolsFile</code> 指向插件根内的 JSON 数组（相对路径）。<code>tools</code> 与 <code>toolsFile</code> 只能出现一个。文件不得越出插件目录。</p>
+            <ul>
+              <li>每个插件最多 <strong>32</strong> 个工具</li>
+              <li><code>name</code> 匹配 <code>^[a-z][a-z0-9_]{0,47}$</code>，插件内不可重复</li>
+              <li><code>description</code> 必填，超过 512 字会被截断</li>
+              <li><code>inputSchema.type</code> 必须是 <code>object</code>；模式体积不超过 8KB，嵌套不超过 6 层</li>
+              <li>与应用已有剪辑命令同名的条目会被丢弃</li>
+              <li>有效工具为零，或名字非法，则整份 <code>mcp</code> 无效（插件本身仍可安装，只是没有助手工具）</li>
+            </ul>
+            <p>对外名称由应用编码：插件 id 里的 <code>_</code> 换成 <code>_u</code>、<code>.</code> 换成 <code>_d</code>，再拼上本地名。</p>
+            <p><code>com.example.hello</code> 的 <code>echo_ping</code> → <code>plugin__com_dexample_dhello__echo_ping</code></p>
+            <p>编码后的 id 在已安装插件之间必须唯一，否则该插件的 <code>mcp</code> 无效。登记方式见<a href="#api-mcp">助手工具</a>。</p>
+
+            <h2 id="permissions">四、权限</h2>
+            <p>安装时用户会看到权限说明。标为高危的项会单独提示。只声明完成功能所需要的权限。</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>权限</th><th>风险</th><th>可调用的方法</th></tr></thead>
+                <tbody>
+                  <tr><td><code>draft.read</code></td><td>低</td><td><code>draft.list</code>、<code>draft.readBlob</code>，以及 <code>draft.changed</code></td></tr>
+                  <tr><td><code>draft.write</code></td><td>中</td><td><code>draft.create</code>、<code>draft.writeBlob</code>、<code>draft.remove</code>、<code>draft.rename</code>、<code>draft.stageMedia</code></td></tr>
+                  <tr><td><code>fs.read</code></td><td><strong>高</strong></td><td><code>fs.readFile</code>、<code>fs.readFileRange</code>、<code>fs.readDir</code>、<code>fs.stat</code>、<code>fs.exists</code></td></tr>
+                  <tr><td><code>fs.write</code></td><td><strong>高</strong></td><td><code>fs.writeFile</code>、<code>fs.mkdir</code>、<code>fs.remove</code>、<code>fs.copyFile</code>、<code>fs.rename</code></td></tr>
+                  <tr><td><code>net.fetch</code></td><td><strong>高</strong></td><td><code>net.fetch</code>，以及页面里直接 <code>fetch</code> / <code>WebSocket</code> 访问外网</td></tr>
+                  <tr><td><code>net.local</code></td><td><strong>高</strong></td><td>在 <code>net.fetch</code> 之上，额外允许访问本机回环地址</td></tr>
+                  <tr><td><code>media.probe</code></td><td>低</td><td><code>media.probe</code>、<code>media.extractAudio</code>、<code>media.getEncodeCaps</code></td></tr>
+                  <tr><td><code>media.render</code></td><td><strong>高</strong></td><td><code>media.startSplitJob</code>、<code>media.cancelSplitJob</code>，以及 <code>media.splitJobProgress</code></td></tr>
+                  <tr><td><code>asr.transcribe</code></td><td>低</td><td><code>asr.getStatus</code>、<code>asr.transcribe</code>、<code>asr.cancel</code>，以及 <code>asr.progress</code></td></tr>
+                  <tr><td><code>ui.notify</code></td><td>低</td><td><code>ui.notify</code></td></tr>
+                  <tr><td><code>ui.pickFiles</code></td><td>低</td><td><code>ui.pickFiles</code></td></tr>
+                  <tr><td><code>ui.pickDirectory</code></td><td>低</td><td><code>ui.pickDirectory</code></td></tr>
+                  <tr><td><code>ui.shell</code></td><td>低</td><td><code>ui.showItemInFolder</code></td></tr>
+                  <tr><td><code>export.render</code></td><td><strong>高</strong></td><td><code>export.enqueue</code>、<code>export.cancel</code>、<code>export.getStatus</code>，以及导出事件</td></tr>
+                  <tr><td><code>process.spawn</code></td><td><strong>高</strong></td><td><code>process.start</code>、<code>process.run</code>、<code>process.wait</code>、<code>process.kill</code>、<code>process.list</code>，以及进程事件</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>以下方法对已启用的插件默认开放，不必声明权限：</p>
+            <ul>
+              <li><code>plugin.ready</code>、<code>plugin.resize</code>、<code>plugin.close</code>、<code>plugin.log</code>、<code>plugin.packageDir</code>、<code>plugin.setBusy</code></li>
+              <li><code>ui.getAppInfo</code></li>
+              <li><code>license.isActive</code>、<code>license.trialDaysLeft</code></li>
+              <li><code>events.subscribe</code>、<code>events.unsubscribe</code>（具体事件仍受上表权限约束）</li>
+              <li><code>fs.dataDir</code>，以及对该目录的读写</li>
+              <li><code>mcp.register</code>（工具本身仍受插件已获权限约束）</li>
+            </ul>
+            <p><code>fs.write</code>、<code>fs.read</code>、<code>net.fetch</code>、<code>net.local</code>、<code>export.render</code>、<code>process.spawn</code>、<code>media.render</code> 会在安装确认里单独说明。</p>
+            <div class="callout">当前版本没有云账号接口。调用 <code>cloud.*</code> 会得到 <code>UNKNOWN_METHOD</code>。</div>
+
+            <h2 id="api">五、SDK API</h2>
+            <p>全局对象：<code>window.PixiuCutPlugin</code>。异步方法返回 Promise。失败抛出 <code>PluginError</code>（<code>err.name === 'PluginError'</code>，<code>err.code</code> 为错误码）。</p>
+            <p>除下面点名的方法外，单次调用默认 <strong>60 秒</strong>超时，超时码为 <code>TIMEOUT</code>。<code>media.startSplitJob</code>、<code>media.cancelSplitJob</code>、<code>asr.transcribe</code> 与 <code>asr.cancel</code> 不设这道超时。</p>
+
+            <h3 id="api-draft">草稿</h3>
+            <p>需要 <code>draft.read</code> 或 <code>draft.write</code>。</p>
             <pre class="code"><code>const drafts = await PixiuCutPlugin.draft.list()
+// ProjectSummary:
 // { id, name, dir, created, modified, durationUs?, thumbnail, type }
+// created / modified 为秒级 Unix 时间；durationUs 为时间线时长（微秒）
 
-const { blob, version } = await PixiuCutPlugin.draft.readBlob(draftId)
-const summary = await PixiuCutPlugin.draft.create(name, blob?)  // 传 blob 则以它为模板
-const res = await PixiuCutPlugin.draft.writeBlob(id, blob, version) // version 用于冲突检测
-await PixiuCutPlugin.draft.remove(id)
+const result = await PixiuCutPlugin.draft.readBlob(draftId)
+// { blob: string, version: string } | null
+// version 是 etag，writeBlob 用来检测冲突
+
+const summary = await PixiuCutPlugin.draft.create(name, blob?)
+// 不传 blob：空草稿（默认 9:16）
+// 传入 blob：以它为模板。应用会铸新 id，并改写 name / created / modified，清空 thumbnail
+
+const res = await PixiuCutPlugin.draft.writeBlob(id, blob, version)
+// { ok: boolean, conflict?: boolean, version?: string }
+// conflict === true：读之后又被改过，应重新 readBlob
+
+await PixiuCutPlugin.draft.remove(id)   // 软删除，进入回收站
 await PixiuCutPlugin.draft.rename(id, newName)
+
+// 把源文件复制进该草稿的媒体目录，返回绝对路径。再把路径写入 clip.file_path
 const { path } = await PixiuCutPlugin.draft.stageMedia(draftId, srcPath)</code></pre>
-            <h3>媒体探测</h3>
+            <ul>
+              <li><code>draft.create</code> 会忽略模板里的 <code>project_info.id</code>。保留源草稿 id 会造成索引串味。使用 <code>create</code> 返回的 <code>summary.id</code></li>
+              <li>编辑器正打开某个草稿时，对它 <code>writeBlob</code> / <code>remove</code> / <code>rename</code> / <code>stageMedia</code> 会得到 <code>DRAFT_BUSY</code></li>
+              <li>删除草稿时，其媒体目录一并清除。<code>stageMedia</code> 只在桌面端可用</li>
+            </ul>
+
+            <h3 id="api-fs">文件</h3>
+            <p>需要 <code>fs.read</code> 或 <code>fs.write</code>。插件自己的数据目录除外。</p>
+            <pre class="code"><code>const text = await PixiuCutPlugin.fs.readFile(path)           // 默认 utf8
+const text = await PixiuCutPlugin.fs.readFile(path, 'utf8')
+const buf  = await PixiuCutPlugin.fs.readFile(path, 'binary') // ArrayBuffer
+const b64  = await PixiuCutPlugin.fs.readFile(path, 'base64') // 仅适合小文件
+
+const chunk = await PixiuCutPlugin.fs.readFileRange(path, offset, length)
+
+await PixiuCutPlugin.fs.writeFile(path, data, encoding?)
+
+const entries = await PixiuCutPlugin.fs.readDir(path)
+// { name, isDir, size, mtimeMs }[]
+
+await PixiuCutPlugin.fs.mkdir(path, recursive?)
+await PixiuCutPlugin.fs.remove(path)
+
+const info = await PixiuCutPlugin.fs.stat(path)   // { size, mtimeMs, isDir } | null
+const exists = await PixiuCutPlugin.fs.exists(path)
+
+await PixiuCutPlugin.fs.copyFile(src, dest)
+await PixiuCutPlugin.fs.copyFile(src, dest, { overwrite: true })
+
+await PixiuCutPlugin.fs.rename(src, dest)
+await PixiuCutPlugin.fs.rename(src, dest, { overwrite: true })
+
+const dir = await PixiuCutPlugin.fs.dataDir()</code></pre>
+            <ul>
+              <li>应用私有数据（草稿仓、配置、登录信息）对 <code>fs.*</code> 不可见，访问得到 <code>PATH_DENIED</code></li>
+              <li>例外：<code>fs.dataDir()</code> 返回的目录可自由读写，不需要 <code>fs.read</code> / <code>fs.write</code>。插件更新时这个目录默认保留</li>
+              <li>应用安装目录默认拒绝写入</li>
+              <li><code>readFile</code> / <code>writeFile</code> 单次约 <strong>32MB</strong>，<code>readFileRange</code> 单次约 <strong>8MB</strong>，超出为 <code>PAYLOAD_TOO_LARGE</code></li>
+              <li><code>copyFile</code> / <code>rename</code> 不受上述体积上限。<code>overwrite</code> 默认 <code>false</code>，目标已存在时为 <code>CONFLICT</code>。二者只处理文件，不搬目录树</li>
+              <li>大视频用 <code>'binary'</code> 或 <code>readFileRange</code>。<code>'base64'</code> 会膨胀体积并经过文本序列化</li>
+              <li>路径使用绝对路径</li>
+            </ul>
+
+            <h3 id="api-net">网络</h3>
+            <p>需要 <code>net.fetch</code>。访问本机回环地址还要 <code>net.local</code>。</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>路径</th><th>方法</th><th>适用</th></tr></thead>
+                <tbody>
+                  <tr><td>代理</td><td><code>PixiuCutPlugin.net.fetch(url, opts)</code></td><td>普通请求。目标对跨域不友好时用这条。应用统一超时和体积</td></tr>
+                  <tr><td>直连</td><td>页面里的 <code>fetch()</code> / <code>WebSocket</code></td><td>流式响应（例如模型逐字输出）。超时、重试、令牌由插件自己处理</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <pre class="code"><code>const res = await PixiuCutPlugin.net.fetch('https://api.example.com/data', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ key: 'value' }),
+  responseType: 'text',   // 'text'（默认）| 'binary'
+  timeoutMs: 30000,
+})
+// { status, headers, body: string | ArrayBuffer }</code></pre>
+            <p>代理默认超时 30 秒、响应体上限 <strong>8MB</strong>，并会复查重定向。直连没有这些限制。应用会为插件页面补上跨域响应头，多数外网接口可以直接 <code>fetch</code>。若目标对预检请求返回 4xx，改走 <code>net.fetch</code>。</p>
+            <p>声明 <code>net.local</code> 后，可以访问 <code>127.0.0.1</code>、<code>localhost</code>、<code>::1</code> 上的本机服务（例如本地模型）。应用自己占用的端口仍然拒绝访问。</p>
+
+            <h3 id="api-media">素材</h3>
+            <p><strong>探测</strong>需要 <code>media.probe</code>。首页打开插件时剪辑引擎可能尚未启动，应用会短时间等待；超时为 <code>ENGINE_UNAVAILABLE</code>。</p>
             <pre class="code"><code>const info = await PixiuCutPlugin.media.probe(filePath)
-// { success, type, width, height, durationUs, frameRate, codec }
-const audio = await PixiuCutPlugin.media.extractAudio(filePath, { format: 'wav' })</code></pre>
-            <h3>委托导出</h3>
+// 成功: { success: true, type: 'video'|'audio'|'image', fileName, filePath,
+//         width, height, durationUs, frameRate, codec }
+// 失败: { success: false, error, fileName, filePath }</code></pre>
+            <p><strong>抽音轨</strong>同样需要 <code>media.probe</code>。应用把 wav 写到临时路径。</p>
+            <pre class="code"><code>const result = await PixiuCutPlugin.media.extractAudio(filePath, {
+  format: 'wav',      // 当前仅 wav
+  streamIndex: 0,     // 音轨序号，默认 0
+})
+// 成功: { success: true, outputPath, durationUs, sampleRate, channels, codec }
+// 失败: { success: false, error }</code></pre>
+            <p><code>durationUs</code> 单位是微秒。视频、音频的时长以探测结果为准。</p>
+            <p><strong>编码能力</strong>需要 <code>media.probe</code>：</p>
+            <pre class="code"><code>const caps = await PixiuCutPlugin.media.getEncodeCaps()
+// { splitJob, sceneSilence, gpuAvailable, recommendedH264, recommendedHevc }</code></pre>
+            <p><strong>批量切片</strong>需要 <code>media.render</code>。<code>outputDir</code> 必须是绝对路径。先看 <code>getEncodeCaps()</code>：<code>sceneSilence === false</code> 时不要使用 <code>mode: 'scene'</code> / <code>'silence'</code>，也不要传 <code>useGpu: true</code>。</p>
+            <pre class="code"><code>PixiuCutPlugin.on('media.splitJobProgress', (p) => {
+  // jobProgress, phase, fileIndex, fileCount, inputPath,
+  // segmentIndex, segmentCount, activeSlots, fileError, silenceNotFound
+})
+
+const result = await PixiuCutPlugin.media.startSplitJob({
+  files: [{ inputPath: 'D:\\\\a.mp4', outputDir: 'D:\\\\out\\\\a' }],
+  mode: 'time', // 'time' | 'count' | 'trim' | 'scene' | 'silence'
+  modeOptions: {
+    minDurationUs: 5_000_000,
+    maxDurationUs: 5_000_000,
+    // count: minCount, maxCount
+    // trim:  startTrimUs, endTrimUs
+    // scene: contentThreshold（0.10～0.50，原样发送）, mergeMinDurationUs, dropShorterThanUs
+    // silence: noiseDb, minSilenceUs, minSegmentUs, silenceType, recombine
+  },
+  maxConcurrency: 2,
+  // useGpu: false,
+  // mutate: { enlarge, speed, mirrorAlternate, trimEndsUs, removeAudio, extractAudio }
+})
+// { ok, cancelled, files: [{ inputPath, ok, error, segmentCount, outputDir, usedGpu, … }], error }
+
+await PixiuCutPlugin.media.cancelSplitJob()</code></pre>
+            <ul>
+              <li>切点、放大和变速在应用侧完成。不要按片段循环调用</li>
+              <li><code>contentThreshold</code> 超出 0.10～0.50 会被拒绝，应用不会替你钳制</li>
+              <li><code>mode: 'silence'</code> 且没有静音区间时，整片会复制为一段，该文件结果仍可能 <code>ok: true</code>，并带 <code>silenceNotFound: true</code></li>
+            </ul>
+            <p>本机语音识别见<a href="#api-asr">下文</a>。</p>
+
+            <h3 id="api-ui">界面</h3>
+            <pre class="code"><code>await PixiuCutPlugin.ui.notify('操作完成')
+await PixiuCutPlugin.ui.notify('出错了', 'error') // 'info' | 'success' | 'warning' | 'error'
+
+const files = await PixiuCutPlugin.ui.pickFiles({
+  title: '选择视频',
+  filters: [{ name: '视频', extensions: ['mp4', 'mov', 'mkv'] }],
+  multiple: true,
+})
+// string[]，取消为 []
+
+const dir = await PixiuCutPlugin.ui.pickDirectory({
+  title: '选择输出目录',
+  defaultPath: lastDir || undefined,
+})
+// string | null
+
+const ok = await PixiuCutPlugin.ui.showItemInFolder(dirOrFilePath)
+// boolean。不附带 fs.read
+
+const info = await PixiuCutPlugin.ui.getAppInfo()
+// { version: string, platform: 'electron' | 'browser' }
+
+const active = await PixiuCutPlugin.license.isActive()
+const days = await PixiuCutPlugin.license.trialDaysLeft()</code></pre>
+            <p>选目录用 <code>ui.pickDirectory</code>，选文件用 <code>ui.pickFiles</code>。<code>ui.getAppInfo</code> 与 <code>license.*</code> 不必声明权限。</p>
+
+            <h3 id="api-export">委托导出</h3>
+            <p>需要 <code>export.render</code>。这是把<strong>已经落盘</strong>的草稿送进首页任务中心的同一条队列，使用应用现有的编码器。先 <code>draft.create</code>，再入队。</p>
             <pre class="code"><code>const { queueId } = await PixiuCutPlugin.export.enqueue(
-  [{ draftId: 'proj_…', outputDir: 'D:/exports', fileName: '成片标题' }],
-  { config: { format: 'mp4', vcodec: 'libx264', resolution: 1080, frameRate: 30 } },
+  [
+    { draftId: 'proj_…', outputDir: 'D:/exports', fileName: '成片标题' },
+    { draftId: 'proj_…', outputDir: 'D:/exports' },
+  ],
+  {
+    config: {
+      format: 'mp4',          // mp4 | mov
+      vcodec: 'libx264',      // libx264 | libx265 | av1
+      resolution: 1080,       // 480 | 720 | 1080；不传则用草稿画布
+      frameRate: 30,          // 24 | 25 | 30 | 60；不传则用草稿画布
+      bitrateMode: 'preset',  // preset | cbr | crf
+      quality: 1,             // 0 | 1 | 2，仅 preset
+      videoBitrate: 8_000_000,
+      crf: 23,
+      audioBitrate: 192000,
+      preset: 'medium',       // veryfast | medium | slow，编码速度
+    },
+    // 省略则跟随首页「导出成功后删除草稿」；显式传入则覆盖
+    // deleteAfterExport: false,
+  },
 )
-PixiuCutPlugin.on('export.progress', ({ draftId, percent }) => {})
-PixiuCutPlugin.on('export.queueIdle', ({ queueId }) => {})</code></pre>
-            <h3>界面与生命周期</h3>
-            <pre class="code"><code>await PixiuCutPlugin.ui.notify('操作完成', 'success')
-const files = await PixiuCutPlugin.ui.pickFiles({ multiple: true })
-const dir = await PixiuCutPlugin.ui.pickDirectory()
+
+PixiuCutPlugin.on('export.progress', ({ queueId, draftId, percent }) => {})
+PixiuCutPlugin.on('export.jobCompleted', ({ queueId, draftId, outputFile }) => {})
+PixiuCutPlugin.on('export.jobFailed', ({ queueId, draftId, message }) => {})
+PixiuCutPlugin.on('export.queueIdle', ({ queueId }) => {})
+
+await PixiuCutPlugin.export.cancel('current')     // 正在导出的一条
+await PixiuCutPlugin.export.cancel('remaining')   // 队列中尚未开始的
+await PixiuCutPlugin.export.cancel(queueId)       // 只取消本批
+
+const snap = await PixiuCutPlugin.export.getStatus(queueId)
+// { queueId, running, jobs: [{ draftId, status, progress, outputFile, error }] }</code></pre>
+            <ul>
+              <li>同一批 <code>jobs</code> 的 <code>outputDir</code> 必须相同，且为目录</li>
+              <li><code>fileName</code> 可选，作为输出文件名（不含扩展名）。省略则用草稿名。重名时应用会自动避开已有文件</li>
+              <li><code>config</code> 里出现的键覆盖缺省。未出现的格式、码率、编码器沿用上次导出偏好；未出现的分辨率、帧率沿用草稿画布</li>
+              <li>队列空闲或暂停时，入队会开始导出；已在导出则追加排队</li>
+              <li>已经在排队或导出中的 <code>draftId</code> 会被跳过，同批其余条目照常入队</li>
+              <li>失败默认跳过并继续下一条</li>
+              <li>取消成功时，单条任务不一定有终态事件。批次收口看 <code>export.queueIdle</code></li>
+              <li>剪辑器正打开时入队得到 <code>EXPORT_BUSY</code></li>
+              <li>草稿 id 不存在得到 <code>NOT_FOUND</code></li>
+              <li>未声明 <code>export.render</code> 时，界面只承诺生成草稿</li>
+            </ul>
+
+            <h3 id="api-process">外部进程</h3>
+            <p>需要 <code>process.spawn</code>。插件页面没有 Node，也不能拼一条 shell 命令。<code>file</code> 必须是已存在的绝对路径，<code>args</code> 必须是字符串数组。</p>
+            <pre class="code"><code>const r = await PixiuCutPlugin.process.run('C:/tools/ffmpeg.exe', ['-version'])
+// { handle, pid, code, signal, stdout, stderr, killed, truncatedStdout, truncatedStderr }
+
+const { handle, pid } = await PixiuCutPlugin.process.start(
+  'C:/tools/ffmpeg.exe',
+  ['-i', src, '-y', out],
+  { cwd: 'D:/work', env: { MY_FLAG: '1' } },
+)
+PixiuCutPlugin.on('process.stdout', ({ handle, text, truncated }) => {})
+PixiuCutPlugin.on('process.stderr', ({ handle, text, truncated }) => {})
+PixiuCutPlugin.on('process.exited', ({ handle, pid, code, signal, killed, truncatedStdout, truncatedStderr }) => {})
+
+const done = await PixiuCutPlugin.process.wait(handle)
+await PixiuCutPlugin.process.kill(handle)
+const live = await PixiuCutPlugin.process.list()
+// [{ handle, pid, file }]</code></pre>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>选项</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td><code>cwd</code></td><td>绝对路径。省略时用本插件的 <code>fs.dataDir()</code></td></tr>
+                  <tr><td><code>env</code></td><td>追加的环境变量。与应用运行环境相关的变量（含 <code>ELECTRON_</code> 前缀）会被去掉</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <ul>
+              <li>不能启动 PixiuCut 自身及其自带引擎。插件包内的可执行文件可以，用 <code>packageDir()</code> 拼绝对路径</li>
+              <li>参数最多 1024 个，单个参数最长约 32K 字符</li>
+              <li>标准输出和标准错误按 UTF-8 推送，每路累计超过 <strong>256KB</strong> 后截断（<code>truncated: true</code>）。大块二进制让子进程写文件，再用 <code>fs.*</code> 读取</li>
+              <li>关闭插件窗口、卸载插件或退出应用时，应用会结束该插件拉起的进程树。需要长期运行的本机服务请让用户自己启动，再用 <code>net.local</code> 连接</li>
+              <li><code>run</code> / <code>wait</code> 受 60 秒 SDK 超时限制。长任务用 <code>start</code>，再用 <code>process.exited</code> 收尾</li>
+              <li>进程退出后约 60 秒内，<code>wait(handle)</code> 仍能取到那次的退出信息，之后为 <code>NOT_FOUND</code></li>
+            </ul>
+
+            <h3 id="api-events">事件</h3>
+            <pre class="code"><code>const unsubscribe = PixiuCutPlugin.on('draft.changed', (payload) => {
+  console.log(payload)
+})
+unsubscribe()</code></pre>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>事件</th><th>payload</th><th>权限</th></tr></thead>
+                <tbody>
+                  <tr><td><code>draft.changed</code></td><td><code>{ id, op }</code>，<code>op</code> 为 <code>create</code> / <code>write</code> / <code>remove</code> / <code>rename</code></td><td><code>draft.read</code></td></tr>
+                  <tr><td><code>export.progress</code></td><td><code>{ queueId, draftId, percent }</code></td><td><code>export.render</code></td></tr>
+                  <tr><td><code>export.jobCompleted</code></td><td><code>{ queueId, draftId, outputFile }</code></td><td><code>export.render</code></td></tr>
+                  <tr><td><code>export.jobFailed</code></td><td><code>{ queueId, draftId, message }</code></td><td><code>export.render</code></td></tr>
+                  <tr><td><code>export.queueIdle</code></td><td><code>{ queueId }</code></td><td><code>export.render</code></td></tr>
+                  <tr><td><code>media.splitJobProgress</code></td><td>见<a href="#api-media">素材</a></td><td><code>media.render</code></td></tr>
+                  <tr><td><code>asr.progress</code></td><td><code>{ phase, percent }</code>，<code>phase</code> 为 <code>extract</code> 或 <code>transcribe</code></td><td><code>asr.transcribe</code></td></tr>
+                  <tr><td><code>process.stdout</code></td><td><code>{ handle, text, truncated }</code></td><td><code>process.spawn</code></td></tr>
+                  <tr><td><code>process.stderr</code></td><td><code>{ handle, text, truncated }</code></td><td><code>process.spawn</code></td></tr>
+                  <tr><td><code>process.exited</code></td><td><code>{ handle, pid, code, signal, killed, truncatedStdout, truncatedStderr }</code></td><td><code>process.spawn</code></td></tr>
+                  <tr><td><code>plugin.willUnload</code></td><td><code>{}</code></td><td>无</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p><code>plugin.willUnload</code> 不保证异步保存能跑完。关键数据在每一步之后写入 <code>fs.dataDir()</code>。订阅未列出的事件名会得到 <code>UNKNOWN_METHOD</code>。</p>
+
+            <h3 id="api-lifecycle">生命周期</h3>
+            <pre class="code"><code>const root = await PixiuCutPlugin.packageDir()
+// 包内程序：process.start(root + '/vendor/tool.exe', args)
+// 发行文件放插件包内。偏好和缓存放 fs.dataDir()
+
+await PixiuCutPlugin.setBusy(true)
+// 为 true 时，用户关窗会先看到确认，确认后结束本插件拉起的进程
+await PixiuCutPlugin.setBusy(false)
+
 await PixiuCutPlugin.ready()
-await PixiuCutPlugin.setBusy(true)   // 长任务期间
-const root = await PixiuCutPlugin.packageDir()
-const data = await PixiuCutPlugin.fs.dataDir()  // 免权限读写</code></pre>
-            <div class="callout">还提供 <code>fs.*</code> 文件操作、<code>net.fetch</code> 网络代理、<code>process.*</code> 外部进程、<code>media.startSplitJob</code> 批量切片、<code>mcp.*</code> 向本机助手登记工具等能力，完整签名见随软件分发的《插件开发指南》原文。</div>
+await PixiuCutPlugin.resize(900, 700)
+await PixiuCutPlugin.close()
+
+PixiuCutPlugin.log('info', '用户点击了按钮', { detail: '...' })
+// level: 'log' | 'info' | 'warn' | 'error'</code></pre>
+            <p>建议初始化完成后再 <code>ready()</code>。若声明了 <code>mcp.tools</code>，在 <code>ready()</code> 之后、拉起耗时子进程之前完成<a href="#api-mcp">助手工具登记</a>。</p>
+
+            <h3 id="api-mcp">登记助手工具</h3>
+            <pre class="code"><code>await PixiuCutPlugin.ready()
+
+PixiuCutPlugin.mcp.onCall('sort_images', async (args) => {
+  // args 自带路径。这里不要再调用 ui.pickDirectory / ui.pickFiles
+  return { ok: true, copied: 12 }
+})
+
+await PixiuCutPlugin.mcp.register([{ name: 'sort_images' }])</code></pre>
+            <ul>
+              <li><code>register</code> 的名字集合必须与清单里的有效工具<strong>完全一致</strong>，少一条或多一条都会整次失败。返回 <code>{ ok: true, registered: string[] }</code></li>
+              <li>助手调用在插件窗口已打开且登记成功之后才会到达 <code>onCall</code>。处理函数的参数是调用方传入的对象，返回值须可 JSON 序列化。抛出的错误若带 <code>code</code>，会原样传回</li>
+              <li>耗时任务尽快返回 <code>{ ok: true, jobId }</code>，进度用本插件自己的另一条工具查询。单次调用在应用侧约 60 秒后会被判定超时</li>
+              <li>助手不另申请插件权限。它只能触发用户安装时已经授权的那些能力</li>
+            </ul>
+            <p>清单声明见<a href="#package-mcp">向本机助手声明工具</a>。</p>
+
+            <h3 id="api-errors">错误处理</h3>
+            <pre class="code"><code>try {
+  await PixiuCutPlugin.draft.writeBlob(id, blob, version)
+} catch (err) {
+  if (err.name !== 'PluginError') throw err
+  switch (err.code) {
+    case 'PERMISSION_DENIED':
+    case 'DRAFT_BUSY':
+    case 'EXPORT_BUSY':
+    case 'CONFLICT':
+    case 'VERSION_REQUIRED':
+    case 'INVALID_DRAFT':
+    case 'NOT_FOUND':
+    case 'RATE_LIMITED':
+    case 'PATH_DENIED':
+    case 'PAYLOAD_TOO_LARGE':
+    case 'ENGINE_UNAVAILABLE':
+    case 'HOST_DENIED':
+    case 'TIMEOUT':
+    case 'INTERNAL':
+      break
+  }
+}</code></pre>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>错误码</th><th>含义</th></tr></thead>
+                <tbody>
+                  <tr><td><code>PERMISSION_DENIED</code></td><td>未声明或用户未授予该权限</td></tr>
+                  <tr><td><code>UNKNOWN_METHOD</code></td><td>方法或事件名不存在</td></tr>
+                  <tr><td><code>NOT_FOUND</code></td><td>草稿、文件或进程句柄不存在</td></tr>
+                  <tr><td><code>DRAFT_BUSY</code></td><td>该草稿正被剪辑器打开</td></tr>
+                  <tr><td><code>EXPORT_BUSY</code></td><td>剪辑器已打开，不能入队导出</td></tr>
+                  <tr><td><code>CONFLICT</code></td><td>etag 冲突，或 <code>copyFile</code> / <code>rename</code> 的目标已存在</td></tr>
+                  <tr><td><code>VERSION_REQUIRED</code></td><td><code>writeBlob</code> 未传 <code>version</code></td></tr>
+                  <tr><td><code>INVALID_DRAFT</code></td><td>JSON 无法解析、<code>format_version</code> 不是 <code>"1.2"</code>，或片段缺少 <code>name</code> / 有限数字 <code>start_time</code></td></tr>
+                  <tr><td><code>PAYLOAD_TOO_LARGE</code></td><td>超过单次体积上限（含草稿 blob）</td></tr>
+                  <tr><td><code>HOST_DENIED</code></td><td>当前环境拒绝该调用（例如非桌面端的 <code>stageMedia</code>，或非桌面环境下的 <code>asr.*</code>）</td></tr>
+                  <tr><td><code>PATH_DENIED</code></td><td>路径不可访问，或试图启动应用自身 / 其引擎</td></tr>
+                  <tr><td><code>RATE_LIMITED</code></td><td>调用过于频繁</td></tr>
+                  <tr><td><code>ENGINE_UNAVAILABLE</code></td><td>剪辑引擎未就绪</td></tr>
+                  <tr><td><code>TIMEOUT</code></td><td>超过 SDK 默认 60 秒</td></tr>
+                  <tr><td><code>INTERNAL</code></td><td>应用内部错误，<code>message</code> 里有说明</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 id="api-asr">本机语音识别</h3>
+            <p>需要 <code>asr.transcribe</code>。把用户自己的视频或音频的绝对路径交给应用的本机语音模型，拿回字幕文本。抽音、转成识别用的音频、识别并整理成字幕条目，都由应用完成。插件把返回的 <code>srt</code> 写成文件，或按<a href="#draft-subtitle">字幕</a>一节把 <code>cues</code> 放进新草稿。应用不写用户目录，不建草稿，也不导入时间线。TXT 由插件自己用 <code>cues</code> 拼。</p>
+            <p>只走本机模型。返回值里没有模型目录、识别程序、是否激活、设置里的引擎偏好，也没有 API Key。设置里保存的 Key 不会出现在插件页面。</p>
+            <div class="callout warn">批量识别走这条本机路径。正式版附带的识别额度，以及用户在设置里填写的 API Key，只在剪辑器的「智能识别字幕」里使用。插件要做云端效果时，自备识别服务：<code>media.extractAudio</code> 得到 wav，再用 <code>net.fetch</code> 上传。不要向用户索取他在设置里保存的 Key，也不要把这条自备路径说成应用自带的语音识别。</div>
+            <p>目前仅 Windows。模型还没下载，或当前系统没有本机识别程序时，<code>localReady</code> 为 <code>false</code>，<code>transcribe</code> 返回 <code>no_model</code>。把返回的 <code>message</code> 展示给用户，提示到设置里下载本机语音模型。插件不能替用户开始下载。</p>
+            <pre class="code"><code>const status = await PixiuCutPlugin.asr.getStatus()
+// { localReady: boolean }
+
+PixiuCutPlugin.on('asr.progress', (p) => {
+  // { phase: 'extract' | 'transcribe', percent: 0..100 }
+})
+
+const result = await PixiuCutPlugin.asr.transcribe(filePath, {
+  streamIndex: 0, // 可选，默认 0
+})
+// 成功: { ok: true, srt, cues: [{ startUs, endUs, text }], durationUs }
+// 没有可识别的人声：ok 仍为 true，cues 为 []，srt 为 ''
+// 失败: { ok: false, code, message }
+
+await PixiuCutPlugin.asr.cancel()
+// { ok: true }。只取消本插件发起的那一次；没有进行中的识别时也返回成功</code></pre>
+            <ul>
+              <li><code>filePath</code> 必须是绝对路径。用户用 <code>ui.pickFiles</code> 选中的素材，以及本插件 <code>fs.dataDir()</code> 里的文件可以。空路径、相对路径、应用私有数据（草稿仓、配置、模型目录）和应用安装目录为 <code>PATH_DENIED</code>。文件不存在为 <code>NOT_FOUND</code>。不需要另声明 <code>fs.read</code></li>
+              <li>把原始视频或音频交进来，不要先自己抽成 wav 再送识别</li>
+              <li>同一时间全局只有一条识别。本插件、剪辑器或其他调用方正在识别时，再调用得到 <code>busy</code>。应用不排队。批量时等上一条结束再调下一条</li>
+              <li>进度：抽音阶段停在 20% 以下；转写阶段为 20～99；只有成功才到 100。取消后不再推进度。关掉插件窗口时，应用会取消这次识别并删除临时音频</li>
+              <li>失败在返回值里，不抛 <code>PluginError</code>。<code>message</code> 直接展示</li>
+            </ul>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th><code>code</code></th><th>何时</th></tr></thead>
+                <tbody>
+                  <tr><td><code>no_model</code></td><td>本机模型或识别程序不可用</td></tr>
+                  <tr><td><code>busy</code></td><td>已有识别在跑</td></tr>
+                  <tr><td><code>no_audio</code></td><td>文件没有音轨，或抽音得到空文件</td></tr>
+                  <tr><td><code>decode</code></td><td>识别失败</td></tr>
+                  <tr><td><code>cancelled</code></td><td>用户取消，或插件窗口关掉时应用中止</td></tr>
+                  <tr><td><code>unsupported_audio</code></td><td>无法准备识别用的音频</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>抽音时剪辑引擎没起来，抛 <code>ENGINE_UNAVAILABLE</code>，与 <code>media.extractAudio</code> 相同，不要当成 <code>no_model</code>。非桌面环境调用这组方法得到 <code>HOST_DENIED</code>。</p>
+            <p>写进草稿时，<code>cues</code> 的 <code>startUs</code> / <code>endUs</code> 已经是微秒，对应字幕条目的 <code>start_time</code> / <code>end_time</code>。不要用 <code>process.start</code> 去启动应用自带的识别程序。</p>
 
             <h2 id="draft">六、草稿格式</h2>
-            <p>草稿 blob 是 JSON 字符串，<code>format_version</code> 固定为 <code>"1.2"</code>。时间字段单位一律是<strong>微秒（µs）</strong>；<code>project_info.created/modified/last_opened</code> 是<strong>秒</strong>级 Unix 时间。</p>
+            <p>草稿 blob 是 JSON 字符串，<code>format_version</code> 固定为 <code>"1.2"</code>。时间字段单位一律是<strong>微秒（µs）</strong>。<code>project_info.created</code> / <code>modified</code> / <code>last_opened</code> 是<strong>秒</strong>级 Unix 时间。</p>
+
+            <h3 id="draft-min">最小文档</h3>
             <pre class="code"><code>{
   "format_version": "1.2",
-  "project_info": { "id": "proj_…", "name": "我的视频", "created": 1700000000,
-                    "modified": 1700000000, "duration": 0, "status": "editing" },
+  "project_info": {
+    "id": "proj_20240101_120000_abc12345",
+    "name": "我的视频",
+    "description": "",
+    "created": 1700000000,
+    "modified": 1700000000,
+    "last_opened": 1700000000,
+    "author": "",
+    "thumbnail": "",
+    "duration": 0,
+    "status": "editing"
+  },
   "project_settings": {
     "video": { "width": 1080, "height": 1920, "frame_rate": 30 },
     "audio": { "sample_rate": 48000, "channels": 2 }
   },
   "tracks": [
-    { "id": "track_1", "type": "video", "name": "主视频轨",
-      "main_track": 1, "clips": [] }
+    {
+      "id": "track_1",
+      "type": "video",
+      "name": "主视频轨",
+      "main_track": 1,
+      "clips": [],
+      "locked": false,
+      "muted": false,
+      "visible": true
+    }
   ]
 }</code></pre>
-            <p><code>clip.type</code> 为整数：1 视频、2 音频、3 图片、4 文本、5 纯色、6 字幕。媒体片段需备齐 <code>name / type / start_time / in_point / out_point / media_duration / duration</code>，其中 <code>duration = (out_point - in_point) / speed_factor</code>。字幕轨只放一个容器片段（<code>type:6</code>，<code>subtitle_container:true</code>），每句台词是 <code>subtitle_track.items</code> 里的一条。</p>
+            <p>不传 blob 时，<code>draft.create</code> 会生成一份同等结构的空草稿。</p>
 
-            <h2 id="errors">七、错误码</h2>
-            <table>
-              <thead><tr><th>错误码</th><th>含义</th></tr></thead>
-              <tbody>
-                <tr><td><code>PERMISSION_DENIED</code></td><td>未声明或用户未授予该权限</td></tr>
-                <tr><td><code>UNKNOWN_METHOD</code></td><td>方法或事件名不存在</td></tr>
-                <tr><td><code>NOT_FOUND</code></td><td>草稿、文件或进程句柄不存在</td></tr>
-                <tr><td><code>DRAFT_BUSY</code> / <code>EXPORT_BUSY</code></td><td>草稿被剪辑器打开 / 剪辑器已打开不能入队</td></tr>
-                <tr><td><code>CONFLICT</code></td><td>etag 冲突，或目标文件已存在</td></tr>
-                <tr><td><code>INVALID_DRAFT</code></td><td>JSON 无法解析或格式非法</td></tr>
-                <tr><td><code>PAYLOAD_TOO_LARGE</code></td><td>超过单次体积上限</td></tr>
-                <tr><td><code>ENGINE_UNAVAILABLE</code></td><td>剪辑引擎未就绪</td></tr>
-                <tr><td><code>TIMEOUT</code></td><td>超过 SDK 默认 60 秒</td></tr>
-                <tr><td><code>INTERNAL</code></td><td>应用内部错误</td></tr>
-              </tbody>
-            </table>
+            <h3 id="draft-clips">轨道与片段</h3>
+            <p><code>track.type</code> 是字符串：<code>video</code> / <code>audio</code> / <code>subtitle</code> / <code>effect</code>。</p>
+            <p><code>clip.type</code> 是整数，二者不要混用：</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>值</th><th>含义</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>视频</td></tr>
+                  <tr><td>2</td><td>音频</td></tr>
+                  <tr><td>3</td><td>图片</td></tr>
+                  <tr><td>4</td><td>文本</td></tr>
+                  <tr><td>5</td><td>纯色</td></tr>
+                  <tr><td>6</td><td>字幕</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>宿主在落盘前检查：每个片段都有非空 <code>name</code>，且 <code>start_time</code> 为有限数字。打开工程时，媒体片段还需要：</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>字段</th><th>必填</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td><code>name</code></td><td>是</td><td>显示名。不要写 <code>clip_name</code></td></tr>
+                  <tr><td><code>type</code></td><td>是</td><td>上表整数</td></tr>
+                  <tr><td><code>file_path</code></td><td>替换素材时</td><td>文件的绝对路径。不要写目录</td></tr>
+                  <tr><td><code>start_time</code></td><td>是</td><td>时间线上的起点（µs）</td></tr>
+                  <tr><td><code>in_point</code></td><td>是</td><td>素材入点（µs）</td></tr>
+                  <tr><td><code>out_point</code></td><td>是</td><td>素材出点（µs），必须大于 <code>in_point</code></td></tr>
+                  <tr><td><code>media_duration</code></td><td>是</td><td>源文件总时长（µs），来自 <code>media.probe</code></td></tr>
+                  <tr><td><code>duration</code></td><td>是</td><td>时间线上占用的时长（µs）</td></tr>
+                  <tr><td><code>speed_factor</code></td><td>否</td><td>倍速，缺省为 1。建议范围 0.25～4</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <pre class="code"><code>duration = (out_point - in_point) / speed_factor</code></pre>
+            <ul>
+              <li>视频轨上把 <code>main_track</code> 设为 <code>1</code> 表示主轨。一条草稿以一条主视频轨为起点即可</li>
+              <li><code>media_files</code> 可以留空数组。用户以后在剪辑器里打开时，应用会按片段路径同步。替换进草稿的文件优先用 <code>draft.stageMedia</code>，这样删除草稿时素材会一起清掉</li>
+              <li>缩略图由应用管理。<code>draft.create</code> 会清空 <code>project_info.thumbnail</code>。不要自己写这个字段</li>
+            </ul>
+
+            <h3 id="draft-subtitle">字幕</h3>
+            <p>字幕轨上只放<strong>一个</strong>容器片段（<code>type: 6</code>，<code>subtitle_container: true</code>）。每一句台词是 <code>subtitle_track.items</code> 里的一条，而不是轨道上的多个片段。没有 <code>id</code> 的条目会被忽略，画面上也不会出现。</p>
+            <p>容器的 <code>start_time</code> 为 <code>0</code>。<code>duration</code>、<code>out_point</code>、<code>media_duration</code> 取所有条目 <code>end_time</code> 的最大值。</p>
+            <p>轨级样式放在 <code>subtitle_track.style</code>。某一句要单独样式时，该条设置 <code>has_custom_style: true</code>，并把样式对象放进 <code>custom_style</code>。未设置的句子使用轨级样式。</p>
+            <pre class="code"><code>{
+  "id": "track_sub",
+  "type": "subtitle",
+  "name": "字幕",
+  "clips": [
+    {
+      "type": 6,
+      "name": "字幕",
+      "file_path": "",
+      "start_time": 0,
+      "in_point": 0,
+      "out_point": 4000000,
+      "media_duration": 4000000,
+      "duration": 4000000,
+      "subtitle_container": true,
+      "subtitle_track": {
+        "style_edit_scope": "track",
+        "style": {
+          "font_family": "Microsoft YaHei UI",
+          "font_size": 100,
+          "color": "#FFFFFFFF",
+          "bold": false,
+          "italic": false,
+          "underline": false,
+          "strikethrough": false,
+          "opacity": 1,
+          "background_color": "#00000000",
+          "background_padding": 20,
+          "outline_color": "#FF000000",
+          "outline_width": 0,
+          "letter_spacing": 0,
+          "rotation": 0,
+          "shadow_offset": 0,
+          "shadow_color": "#80000000",
+          "position_x": 7,
+          "position_y": 70,
+          "position_width": 85,
+          "position_height": 8,
+          "alignment": "center",
+          "valign": "middle"
+        },
+        "items": [
+          {
+            "id": "cue_1",
+            "text": "大家好",
+            "start_time": 0,
+            "end_time": 2000000,
+            "duration": 2000000
+          },
+          {
+            "id": "cue_2",
+            "text": "第二句",
+            "start_time": 2000000,
+            "end_time": 4000000,
+            "duration": 2000000,
+            "has_custom_style": true,
+            "custom_style": { "font_size": 80, "color": "#FFFFFF00" }
+          }
+        ]
+      }
+    }
+  ]
+}</code></pre>
+            <ul>
+              <li>样式字段使用上表中的蛇形命名。颜色为 <code>#AARRGGBB</code>（含透明度）</li>
+              <li><code>font_family</code> 只写一个字体族名称，不要写带逗号的 CSS 字体列表；缺省可用 <code>Microsoft YaHei UI</code>。<code>font_size</code> 约为 8～400。<code>opacity</code> 为 0～1</li>
+              <li><code>position_*</code> 是相对画面的百分比。<code>alignment</code> 为 <code>left</code> / <code>center</code> / <code>right</code>，<code>valign</code> 为 <code>top</code> / <code>middle</code> / <code>bottom</code></li>
+              <li><code>outline_width</code> 是向外的描边宽度。<code>background_color</code> 的透明度为 0 时不画底框</li>
+              <li>同一时间不要让两条字幕重叠。条目 <code>id</code> 在该容器内保持唯一，使用稳定字符串即可</li>
+              <li>把每句字幕做成独立的 <code>type: 6</code> 片段、或只在片段上写扁平的 <code>text</code> / <code>font_family</code>，打开后不会显示</li>
+            </ul>
+
+            <h3 id="draft-rewrite">改写建议</h3>
+            <ul>
+              <li>产出新结果时用 <code>draft.create</code>。它不需要 etag，也不会因为剪辑器占用原稿而失败</li>
+              <li><code>writeBlob</code> 必须带上 <code>readBlob</code> 返回的 <code>version</code></li>
+              <li>时长怎么对齐、文件怎么命名，由插件自己决定。应用不提供「按时长匹配素材」这类方法</li>
+              <li>旧版 <code>format_version</code> 无法打开，也不要写迁移</li>
+            </ul>
+
+            <h2 id="debug">七、调试</h2>
+            <ol>
+              <li>安装或刷新插件（见<a href="#quickstart-run">在应用里运行</a>）</li>
+              <li>从首页入口打开</li>
+              <li><code>F12</code> 查看页面控制台、<code>PixiuCutPlugin.log()</code> 和网络请求</li>
+              <li>验收 <code>media.*</code> 与 <code>export.*</code> 时，先让应用完成引擎启动。导出进度同时出现在首页任务中心</li>
+              <li>插件窗口打开时，不能再进剪辑器；剪辑器打开时，不能入队导出（<code>EXPORT_BUSY</code>），对正在编辑的草稿写入会得到 <code>DRAFT_BUSY</code></li>
+            </ol>
+            <p>界面状态不要只放在内存里。关窗再开会重新加载页面。</p>
 
             <h2 id="publish">八、发布</h2>
-            <p>打成一个 zip：解压后的根目录就是 <code>manifest.json</code> 和入口 HTML，不要多包一层，体积不超过 <strong>80MB</strong>。</p>
-            <ul>
-              <li><strong>从 zip 安装</strong>：插件管理 → 已安装 →「从 zip 安装」</li>
-              <li><strong>本地目录</strong>：以 <code>manifest.id</code> 为文件夹名放到应用插件目录，点「刷新」</li>
-              <li><strong>发现目录</strong>：向官方目录维护者提供记录（id、name、latestVersion、downloadUrl 等），用户在「插件 → 发现」中安装</li>
-            </ul>
-            <p>安装后默认启用，首页出现快捷入口，不必重启。更新时安装目录被替换，<code>fs.dataDir()</code> 数据目录默认保留。</p>
+            <h3 id="publish-zip">安装包</h3>
+            <p>一个 zip。解压后的根上就是 <code>manifest.json</code> 和入口 HTML，不要多包一层多余目录。体积不超过 80MB。</p>
+            <h3 id="publish-install">用户如何安装</h3>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>方式</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td>zip</td><td>插件管理 → 已安装 →「从 zip 安装」</td></tr>
+                  <tr><td>本地目录</td><td>以 <code>manifest.id</code> 为文件夹名放到应用插件目录，再点「刷新」</td></tr>
+                  <tr><td>发现</td><td>用户在「插件 → 发现」中安装。条目来自官方目录</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>安装后默认启用，首页出现快捷入口，不必重启应用。用户会看到清单里的权限。更新时安装目录会被替换，<code>fs.dataDir()</code> 对应的数据目录默认保留。</p>
 
-            <h2 id="faq">九、常见问题</h2>
+            <h3 id="publish-catalog">收录进发现目录</h3>
+            <p>向目录维护者提供一条记录。目录文件本身为：</p>
+            <pre class="code"><code>{
+  "schemaVersion": 1,
+  "plugins": []
+}</code></pre>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>字段</th><th>必填</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr><td><code>id</code></td><td>是</td><td>与 <code>manifest.id</code> 相同。字母、数字及 <code>.</code> <code>_</code> <code>-</code>，长度 2～128，不能含 <code>..</code> 或路径分隔符</td></tr>
+                  <tr><td><code>name</code></td><td>是</td><td></td></tr>
+                  <tr><td><code>latestVersion</code></td><td>是</td><td>semver</td></tr>
+                  <tr><td><code>downloadUrl</code></td><td>是</td><td>zip 的 https 地址</td></tr>
+                  <tr><td><code>description</code> / <code>author</code></td><td>否</td><td>省略时按空字符串展示</td></tr>
+                  <tr><td><code>sha256</code></td><td>否</td><td>zip 的 64 位十六进制摘要。缺失或与文件不符时只记录日志，不阻止安装</td></tr>
+                  <tr><td><code>sizeBytes</code></td><td>否</td><td>zip 字节数。不符时只记录日志</td></tr>
+                  <tr><td><code>homepage</code> / <code>icon</code> / <code>screenshots</code> / <code>category</code></td><td>否</td><td><code>icon</code> 为 https 或 data URI</td></tr>
+                  <tr><td><code>minSdkVersion</code> / <code>minAppVersion</code></td><td>否</td><td>不满足时，发现页显示当前应用不支持</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>收录由目录维护者操作。本应用不提供自助上架后台。</p>
+
+            <h2 id="practices">九、实践建议</h2>
+            <h3 id="practice-config">把配置写到数据目录</h3>
+            <pre class="code"><code>const dir = await PixiuCutPlugin.fs.dataDir()
+const configPath = dir + '/config.json'
+let config = {}
+if (await PixiuCutPlugin.fs.exists(configPath)) {
+  config = JSON.parse(await PixiuCutPlugin.fs.readFile(configPath))
+}
+config.lastDir = dirPicked
+await PixiuCutPlugin.fs.writeFile(configPath, JSON.stringify(config))</code></pre>
+
+            <h3 id="practice-save">先落盘，再通知</h3>
+            <pre class="code"><code>async function doWork() {
+  const result = await processData()
+  await saveToDataDir(result)
+  await PixiuCutPlugin.ui.notify('处理完成')
+}</code></pre>
+            <p>不要把唯一一次保存放在 <code>plugin.willUnload</code> 里。</p>
+
+            <h3 id="practice-draft">草稿</h3>
+            <ul>
+              <li>新结果用 <code>draft.create</code></li>
+              <li>使用 <code>create</code> 返回的 <code>summary.id</code>，不要继续用模板里的 id</li>
+              <li>改片段前备齐 <code>name</code>、<code>start_time</code>、<code>in_point</code>、<code>out_point</code>、<code>media_duration</code>、<code>duration</code></li>
+              <li>变速只改 <code>speed_factor</code>，并按公式重算 <code>duration</code></li>
+            </ul>
+
+            <h3 id="practice-files">选路径与大文件</h3>
+            <ul>
+              <li>目录用 <code>ui.pickDirectory</code>，文件用 <code>ui.pickFiles</code></li>
+              <li>需要拖入文件夹时：沙箱里的 <code>File</code> 不一定带有 <code>path</code>。依次尝试 <code>File.path</code>、<code>text/uri-list</code>、<code>text/plain</code>，再用 <code>fs.stat</code> 确认是目录。拖入的视频不要读成 Blob 再整文件写回</li>
+              <li>扫描素材用 <code>fs.readDir</code> 加扩展名过滤，再用 <code>media.probe</code> 取时长</li>
+              <li>大文件用 <code>'binary'</code> 或分片。注意 32MB / 8MB 上限</li>
+              <li>长任务开始时 <code>setBusy(true)</code>，结束时 <code>setBusy(false)</code></li>
+            </ul>
+
+            <h3 id="practice-danger">危险操作要写在控件旁边</h3>
+            <p>会移动、覆盖或删除用户文件，或覆盖已有草稿的选项，在控件同一行写一句短说明。执行前再用插件自己的遮罩确认一次。</p>
+            <p>第一次打开可以用一句可关闭的提示说明主路径，并把「已读」记在 <code>fs.dataDir()</code>。不要每次启动都弹出，也不要做成必须点完的向导。</p>
+            <p>空列表写清三步：选什么、选完列表里会出现什么、主按钮会改磁盘还是只生成草稿。扫描结果为空时，再换成「没有找到…」。</p>
+
+            <h3 id="practice-rate">调用节奏</h3>
+            <p>避免在循环里对每个文件各打一次很重的调用。<code>draft.create</code> 与 <code>fs.writeFile</code> 有频率限制，批量时稍作间隔。超大 JSON 可以在 Worker 里解析后再提交。</p>
+
+            <h2 id="faq">十、常见问题</h2>
             <h3>可以用 React / Vue / Svelte 吗？</h3>
-            <p>可以。构建产物是一个入口 HTML。不要把 SDK 打进包，将 <code>PixiuCutPlugin</code> 标为外部全局变量。</p>
+            <p>可以。构建产物是一个入口 HTML。不要把 SDK 打进包，也不要手写 script 引用。将 <code>PixiuCutPlugin</code> 标成外部全局变量。</p>
             <h3>可以调用 Node.js 吗？</h3>
-            <p>不可以。系统能力都走 SDK 方法。需要 ffmpeg 或自带程序时，用 <code>process.spawn</code> 启动绝对路径，或把程序放进插件包内。</p>
-            <h3>能直接连剪辑引擎吗？</h3>
-            <p>不能。探测、抽音轨、切片和导出都通过 SDK，由应用代为调用。</p>
+            <p>不可以。系统能力都走本文的 SDK 方法。需要 ffmpeg 或自带程序时，用 <code>process.spawn</code> 启动绝对路径，或把程序放在插件包内。</p>
+            <h3>为什么不能从窗口外壳往页面里插脚本？</h3>
+            <p>沙箱没有 <code>allow-same-origin</code>，外壳读不到页面文档。SDK 只在页面服务返回 HTML 时注入。</p>
             <h3>插件之间能互相调用吗？</h3>
             <p>不能。交接方式是插件 A 创建草稿，用户再打开插件 B 读取它。</p>
+            <h3>能直接连剪辑引擎吗？</h3>
+            <p>不能。探测、抽音轨、切片、导出和本机语音识别都通过 SDK，由应用代为调用。</p>
+            <h3>超时是多久？</h3>
+            <p>默认 60 秒，错误码 <code>TIMEOUT</code>。<code>media.startSplitJob</code>、<code>media.cancelSplitJob</code>、<code>asr.transcribe</code> 与 <code>asr.cancel</code> 不受这道限制。<code>net.fetch</code> 默认 30 秒，可用 <code>timeoutMs</code> 修改。</p>
+            <h3>插件可以调用应用里的语音识别吗？</h3>
+            <p>可以，只调用本机语音模型。把视频或音频的绝对路径交给 <code>asr.transcribe</code>，拿回字幕文本后自己写成 SRT 或 TXT。见<a href="#api-asr">本机语音识别</a>。模型目录、识别程序、API Key 都不交给插件。</p>
+            <p>本机模型还没下载时，结果是 <code>no_model</code>。把返回的 <code>message</code> 展示给用户，提示到设置里下载。</p>
+            <p>云端识别不经过插件。正式版附带的识别额度，以及用户在设置里填写的 API Key，都只在剪辑器的「智能识别字幕」里使用。插件要做云端效果时，自备识别服务：<code>media.extractAudio</code> 得到 wav，再用 <code>net.fetch</code> 上传。</p>
+            <h3>怎样把视频里的声音送给自己的识别服务？</h3>
+            <p><code>media.extractAudio</code> 得到 wav 的 <code>outputPath</code>，再用 <code>fs.readFile(path, 'binary')</code> 读取，经 <code>net.fetch</code> 或直连 <code>fetch</code> 上传。引擎未启动时得到 <code>ENGINE_UNAVAILABLE</code>。抽轨失败时，用 <code>ui.pickFiles</code> 让用户改选音频文件。这是插件自己的识别服务，不是应用自带的语音识别。应用自带的只有<a href="#api-asr">本机模型</a>。</p>
+            <h3>插件能停在剪辑器里面吗？</h3>
+            <p>不能。插件是独立窗口，与剪辑器互斥。</p>
+            <h3>导出和任务中心是什么关系？</h3>
+            <p>同一条队列。<code>export.enqueue</code> 之后，用户在首页任务中心能看到进度。插件窗口关掉后，已经入队的任务不会被取消。</p>
+            <h3>能启动 ffmpeg 吗？</h3>
+            <p>可以。声明 <code>process.spawn</code>，传入绝对路径。不能启动 PixiuCut 自身及其引擎。插件包内的程序可以。关闭插件窗口后，由该插件启动的进程会被结束。</p>
+            <h3>怎样让本机助手调用插件？</h3>
+            <p>在 <code>manifest.mcp.tools</code> 里声明，打开后用 <code>mcp.onCall</code> 与 <code>mcp.register</code> 登记。参数里带齐路径，不要在工具处理函数里弹文件框。见<a href="#package-mcp">清单声明</a>与<a href="#api-mcp">登记</a>。</p>
 
-            <div class="callout" style="margin-top:32px">本页为速查版，完整 SDK（含 <code>fs</code>/<code>net</code>/<code>process</code>/<code>media</code>/<code>mcp</code> 全部方法签名与约束）随软件分发。<a href="index.html#download">下载 PixiuCut</a> 后即可查阅并在插件窗口按 <code>F12</code> 调试。</div>
+            <h2 id="protocol">附录：不用官方 SDK 时的消息格式</h2>
+            <p>默认请使用注入的 <code>PixiuCutPlugin</code>。它提供超时、<code>PluginError.code</code> 和事件订阅。若必须自己收发消息，格式如下。</p>
+            <p>请求：</p>
+            <pre class="code"><code>window.parent.postMessage(
+  { type: 'request', id: 1, method: 'draft.list', params: [] },
+  '*',
+)</code></pre>
+            <p><code>id</code> 必须是数字。<code>params</code> 是与方法参数顺序一致的数组。目标源使用 <code>'*'</code>，因为沙箱页面的来源是 <code>null</code>。</p>
+            <p>响应：<code>{ type: 'response', id, result }</code> 或 <code>{ type: 'response', id, error: { code, message } }</code>。</p>
+            <p>事件：<code>{ type: 'event', event, payload }</code>。收到事件前需先请求 <code>events.subscribe</code>。</p>
+            <p>助手调用（仅在使用官方 SDK 的 <code>mcp.onCall</code> 时由应用发送）：页面收到 <code>{ type: 'mcp.invoke', id, name, args }</code>，再回复 <code>{ type: 'mcp.result', id, result }</code> 或 <code>{ type: 'mcp.result', id, error: { code, message } }</code>。</p>
           </div>
         </div>
       </div>
