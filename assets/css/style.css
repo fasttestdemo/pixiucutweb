@@ -429,8 +429,8 @@ img { max-width: 100%; display: block; }
 
 /* ----- Doc tables ----- */
 .table-scroll { overflow-x: auto; margin: 0 0 20px; }
-.table-scroll table { margin-bottom: 0; }
 .docs-content table, .table { width: 100%; border-collapse: collapse; margin: 0 0 20px; font-size: 14px; }
+.docs-content .table-scroll table { margin-bottom: 0; }
 .docs-content th, .docs-content td, .table th, .table td { border: 1px solid var(--border); padding: 9px 12px; text-align: left; vertical-align: top; }
 .docs-content th, .table th { background: var(--bg-3); color: var(--text); font-weight: 600; }
 .docs-content td, .table td { color: var(--text-2); }
@@ -470,7 +470,7 @@ img { max-width: 100%; display: block; }
 /* ===== Responsive ===== */
 @media (max-width: 900px) {
   .docs-layout { grid-template-columns: 1fr; gap: 24px; }
-  .docs-toc { position: static; display: none; }
+  .docs-toc { position: static; max-height: none; overflow: visible; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px 16px 12px; }
   .video-grid { grid-template-columns: 1fr; }
   .pricing-grid { grid-template-columns: repeat(2, 1fr); }
   .license-grid { grid-template-columns: 1fr; }

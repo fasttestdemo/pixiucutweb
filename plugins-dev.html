@@ -431,7 +431,7 @@ const dir = await PixiuCutPlugin.fs.dataDir()</code></pre>
 })
 
 const result = await PixiuCutPlugin.media.startSplitJob({
-  files: [{ inputPath: 'D:\\\\a.mp4', outputDir: 'D:\\\\out\\\\a' }],
+  files: [{ inputPath: 'D:\\a.mp4', outputDir: 'D:\\out\\a' }],
   mode: 'time', // 'time' | 'count' | 'trim' | 'scene' | 'silence'
   modeOptions: {
     minDurationUs: 5_000_000,
@@ -676,7 +676,7 @@ await PixiuCutPlugin.mcp.register([{ name: 'sort_images' }])</code></pre>
             <p>需要 <code>asr.transcribe</code>。把用户自己的视频或音频的绝对路径交给应用的本机语音模型，拿回字幕文本。抽音、转成识别用的音频、识别并整理成字幕条目，都由应用完成。插件把返回的 <code>srt</code> 写成文件，或按<a href="#draft-subtitle">字幕</a>一节把 <code>cues</code> 放进新草稿。应用不写用户目录，不建草稿，也不导入时间线。TXT 由插件自己用 <code>cues</code> 拼。</p>
             <p>只走本机模型。返回值里没有模型目录、识别程序、是否激活、设置里的引擎偏好，也没有 API Key。设置里保存的 Key 不会出现在插件页面。</p>
             <div class="callout warn">批量识别走这条本机路径。正式版附带的识别额度，以及用户在设置里填写的 API Key，只在剪辑器的「智能识别字幕」里使用。插件要做云端效果时，自备识别服务：<code>media.extractAudio</code> 得到 wav，再用 <code>net.fetch</code> 上传。不要向用户索取他在设置里保存的 Key，也不要把这条自备路径说成应用自带的语音识别。</div>
-            <p>目前仅 Windows。模型还没下载，或当前系统没有本机识别程序时，<code>localReady</code> 为 <code>false</code>，<code>transcribe</code> 返回 <code>no_model</code>。把返回的 <code>message</code> 展示给用户，提示到设置里下载本机语音模型。插件不能替用户开始下载。</p>
+            <p>目前仅 Windows。模型还没下载，或当前系统没有本机识别程序时，<code>localReady</code> 为 <code>false</code>，<code>transcribe</code> 返回 <code>no_model</code>。把返回的 <code>message</code> 展示给用户，提示到设置里下载本机语音模型。不要改写成「请激活正式版」或「请填写 API Key」。插件不能替用户开始下载。</p>
             <pre class="code"><code>const status = await PixiuCutPlugin.asr.getStatus()
 // { localReady: boolean }
 
@@ -986,7 +986,7 @@ await PixiuCutPlugin.fs.writeFile(configPath, JSON.stringify(config))</code></pr
             <p>默认 60 秒，错误码 <code>TIMEOUT</code>。<code>media.startSplitJob</code>、<code>media.cancelSplitJob</code>、<code>asr.transcribe</code> 与 <code>asr.cancel</code> 不受这道限制。<code>net.fetch</code> 默认 30 秒，可用 <code>timeoutMs</code> 修改。</p>
             <h3>插件可以调用应用里的语音识别吗？</h3>
             <p>可以，只调用本机语音模型。把视频或音频的绝对路径交给 <code>asr.transcribe</code>，拿回字幕文本后自己写成 SRT 或 TXT。见<a href="#api-asr">本机语音识别</a>。模型目录、识别程序、API Key 都不交给插件。</p>
-            <p>本机模型还没下载时，结果是 <code>no_model</code>。把返回的 <code>message</code> 展示给用户，提示到设置里下载。</p>
+            <p>本机模型还没下载时，结果是 <code>no_model</code>。把返回的 <code>message</code> 展示给用户，提示到设置里下载。不要写成「请激活正式版」或「请填写 API Key」。</p>
             <p>云端识别不经过插件。正式版附带的识别额度，以及用户在设置里填写的 API Key，都只在剪辑器的「智能识别字幕」里使用。插件要做云端效果时，自备识别服务：<code>media.extractAudio</code> 得到 wav，再用 <code>net.fetch</code> 上传。</p>
             <h3>怎样把视频里的声音送给自己的识别服务？</h3>
             <p><code>media.extractAudio</code> 得到 wav 的 <code>outputPath</code>，再用 <code>fs.readFile(path, 'binary')</code> 读取，经 <code>net.fetch</code> 或直连 <code>fetch</code> 上传。引擎未启动时得到 <code>ENGINE_UNAVAILABLE</code>。抽轨失败时，用 <code>ui.pickFiles</code> 让用户改选音频文件。这是插件自己的识别服务，不是应用自带的语音识别。应用自带的只有<a href="#api-asr">本机模型</a>。</p>

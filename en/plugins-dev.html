@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Plugin Development Guide · PixiuCut SDK 1.0.0</title>
-  <meta name="description" content="PixiuCut plugin development guide: build draft-tool plugins on the official SDK 1.0.0. Covers a five-minute example, manifest, permissions, SDK API, draft format and error codes." />
+  <meta name="description" content="PixiuCut plugin development guide (SDK 1.0.0): five-minute example, manifest, permissions, draft / file / network / media / export / process / on-device ASR APIs, draft format, error codes, and publishing." />
   <meta name="keywords" content="PixiuCut plugin development,plugin SDK,draft transformer,PixiuCutPlugin,plugin API,video editor plugin" />
   <link rel="canonical" href="https://pixiucut.meitool.cn/en/plugins-dev.html" />
   <link rel="alternate" hreflang="zh-CN" href="https://pixiucut.meitool.cn/plugins-dev.html" />
@@ -12,7 +12,7 @@
   <link rel="alternate" hreflang="x-default" href="https://pixiucut.meitool.cn/plugins-dev.html" />
   <meta property="og:type" content="article" />
   <meta property="og:title" content="Plugin Development Guide · PixiuCut" />
-  <meta property="og:description" content="Build PixiuCut draft-tool plugins on the official SDK 1.0.0." />
+  <meta property="og:description" content="Build PixiuCut draft-tool plugins against the SDK 1.0.0 method names, fields, and error codes." />
   <meta property="og:url" content="https://pixiucut.meitool.cn/en/plugins-dev.html" />
   <link rel="icon" type="image/png" href="../assets/img/logo-32.png" />
   <link rel="stylesheet" href="../assets/css/style.css" />
@@ -47,7 +47,7 @@
       <div class="container">
         <span class="pill pill-accent">SDK 1.0.0</span>
         <h1>Plugin Development Guide</h1>
-        <p>For third-party developers building draft tools for PixiuCut. Implement against the method names, fields and error codes here — no need to read the app source.</p>
+        <p>For third-party developers building draft tools for PixiuCut. The contract is SDK <code>1.0.0</code> (<code>manifest.sdkVersion</code> is <code>^1.0.0</code>). Implement against the method names, fields, and error codes here — you do not need to read the app source.</p>
       </div>
     </section>
 
@@ -59,37 +59,55 @@
             <ul>
               <li><a href="#overview">1. What plugins can do</a></li>
               <li><a href="#quickstart">2. Five-minute example</a></li>
-              <li><a href="#package">3. Package & manifest</a></li>
+              <li><a href="#package">3. Package</a></li>
               <li><a href="#permissions">4. Permissions</a></li>
-              <li><a href="#api">5. SDK API</a></li>
+              <li>
+                <a href="#api">5. SDK API</a>
+                <ul>
+                  <li><a href="#api-draft">Drafts</a></li>
+                  <li><a href="#api-fs">Files</a></li>
+                  <li><a href="#api-net">Network</a></li>
+                  <li><a href="#api-media">Media</a></li>
+                  <li><a href="#api-ui">UI</a></li>
+                  <li><a href="#api-export">Export</a></li>
+                  <li><a href="#api-process">Processes</a></li>
+                  <li><a href="#api-events">Events</a></li>
+                  <li><a href="#api-lifecycle">Lifecycle</a></li>
+                  <li><a href="#api-mcp">Assistant tools</a></li>
+                  <li><a href="#api-errors">Errors</a></li>
+                  <li><a href="#api-asr">On-device ASR</a></li>
+                </ul>
+              </li>
               <li><a href="#draft">6. Draft format</a></li>
-              <li><a href="#errors">7. Error codes</a></li>
+              <li><a href="#debug">7. Debugging</a></li>
               <li><a href="#publish">8. Publishing</a></li>
-              <li><a href="#faq">9. FAQ</a></li>
+              <li><a href="#practices">9. Practices</a></li>
+              <li><a href="#faq">10. FAQ</a></li>
+              <li><a href="#protocol">Appendix: messages</a></li>
             </ul>
           </aside>
 
           <div class="docs-content">
             <h2 id="overview">1. What plugins can do</h2>
-            <p>A plugin is a <strong>draft transformer</strong>: it reads a user draft and writes one or more new drafts. To produce a video, it can delegate to the app to send a saved draft into the <strong>task center</strong> for export.</p>
+            <p>A plugin is a <strong>draft transformer</strong>: it reads the user's draft and writes one or more new drafts. When a finished video is needed, it can ask the app to send a saved draft into the <strong>task center</strong> for export.</p>
             <pre class="code"><code>input  = a draft (plus the user's own media files)
-output = new draft(s)
-option = delegate the app to export drafts to a chosen directory</code></pre>
-            <p>Good use cases:</p>
+output = one or more new drafts
+option = ask the app to export drafts into a directory the user chose</code></pre>
+            <p>Good fits:</p>
             <ul>
-              <li>Batch-replace media in a template draft to generate variants, then enqueue export</li>
-              <li>Read video info or supply your own audio, call your own ASR service, write back a subtitled draft</li>
-              <li>Convert another app's project description into a PixiuCut draft</li>
+              <li>Replace media in one template draft to produce many variants, then queue them for export</li>
+              <li>Read video info or bring your own audio, call your own speech service, or hand the media to the app's on-device speech model, and write a new draft with subtitles</li>
+              <li>Turn another app's project description into a PixiuCut draft</li>
               <li>Sync drafts to your own storage</li>
             </ul>
-            <div class="callout">Plugin pages run in a separate window; they don't enter the editor timeline and don't provide custom filters/transitions/encoders. Media probing, audio extraction, batch splitting and export are all done by the app — plugins must not connect to the editing engine themselves.</div>
+            <div class="callout">The plugin page runs in its own window. It does not enter the editor timeline, and it does not add custom filters, transitions, or encoders. Export uses the app's existing export path. Media probe, audio extraction, batch splitting, and on-device speech recognition are also done by the app. Do not connect to the editing engine yourself.</div>
 
             <h2 id="quickstart">2. Five-minute example</h2>
-            <p>A minimal plugin needs only two files:</p>
+            <h3 id="quickstart-min">Minimal plugin</h3>
             <pre class="code"><code>hello-plugin/
 ├── manifest.json
 └── index.html</code></pre>
-            <h3>manifest.json</h3>
+            <p><strong>manifest.json</strong></p>
             <pre class="code"><code>{
   "id": "com.example.hello",
   "name": "Hello Plugin",
@@ -99,150 +117,902 @@ option = delegate the app to export drafts to a chosen directory</code></pre>
   "main": "index.html",
   "sdkVersion": "^1.0.0",
   "permissions": ["draft.read", "draft.write", "ui.notify"],
-  "slots": [{ "id": "home.shortcut", "label": "Hello" }],
+  "slots": [
+    { "id": "home.shortcut", "label": "Hello" }
+  ],
   "window": { "width": 640, "height": 480 }
 }</code></pre>
-            <h3>Use the global object PixiuCutPlugin</h3>
-            <pre class="code"><code>const sdk = PixiuCutPlugin
+            <p><strong>index.html</strong> — use the global <code>PixiuCutPlugin</code>. Do not ship an SDK in the package, and do not write <code>&lt;script src="sdk.js"&gt;</code>.</p>
+            <pre class="code"><code>&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8" /&gt;
+  &lt;title&gt;Hello Plugin&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h2&gt;Hello PixiuCut&lt;/h2&gt;
+  &lt;p id="info"&gt;Loading…&lt;/p&gt;
+  &lt;button id="btn"&gt;Make a variant draft&lt;/button&gt;
+  &lt;script&gt;
+    const sdk = PixiuCutPlugin
 
-async function init() {
-  const drafts = await sdk.draft.list()
-  console.log(`Connected, ${drafts.length} draft(s)`)
-  await sdk.ready()
-}
+    async function init() {
+      const drafts = await sdk.draft.list()
+      document.getElementById('info').textContent =
+        `Connected. ${drafts.length} draft(s).`
+      await sdk.ready()
+    }
 
-async function makeVariant() {
-  const drafts = await sdk.draft.list()
-  if (!drafts.length) return sdk.ui.notify('Create a draft first', 'warning')
-  const { blob } = await sdk.draft.readBlob(drafts[0].id)
-  await sdk.draft.create(drafts[0].name + ' copy', blob)
-  await sdk.ui.notify('Copy created', 'success')
-}
+    document.getElementById('btn').onclick = async () => {
+      const drafts = await sdk.draft.list()
+      if (!drafts.length) {
+        await sdk.ui.notify('Create a draft first', 'warning')
+        return
+      }
+      const { blob } = await sdk.draft.readBlob(drafts[0].id)
+      const name = drafts[0].name + ' copy'
+      await sdk.draft.create(name, blob)
+      await sdk.ui.notify('Created: ' + name, 'success')
+    }
 
-init().catch((e) => console.error(e))</code></pre>
-            <div class="callout warn">Don't bundle the SDK, and don't write <code>&lt;script src="sdk.js"&gt;</code>. The app's local page server injects <code>/sdk.js</code> when returning your HTML. Pages run in a sandboxed iframe (<code>sandbox="allow-scripts allow-forms allow-modals"</code>, without <code>allow-same-origin</code>), so <code>localStorage</code> is unavailable — write config to <code>fs.dataDir()</code>.</div>
+    init().catch((e) => {
+      document.getElementById('info').textContent = 'Error: ' + e.message
+    })
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
 
-            <h2 id="package">3. Package & manifest</h2>
-            <p>No required build tool. Plain HTML, or a single entry page built with React / Vue / Svelte. Mark <code>PixiuCutPlugin</code> as an external global; don't bundle it. Static assets use paths relative to the plugin root.</p>
-            <table>
-              <thead><tr><th>Field</th><th>Requirement</th></tr></thead>
-              <tbody>
-                <tr><td><code>id</code></td><td>Required. Reverse-domain, globally unique; install folder name matches it</td></tr>
-                <tr><td><code>name</code> / <code>version</code> / <code>author</code></td><td>Required. <code>version</code> is semver</td></tr>
-                <tr><td><code>main</code></td><td>Entry HTML, defaults to <code>index.html</code></td></tr>
-                <tr><td><code>sdkVersion</code></td><td>Target SDK, currently <code>^1.0.0</code></td></tr>
-                <tr><td><code>permissions</code></td><td>See section 4, shown to the user at install</td></tr>
-                <tr><td><code>slots</code></td><td>Home entries, <code>id</code> fixed to <code>home.shortcut</code>, optional relative <code>icon</code></td></tr>
-                <tr><td><code>window</code></td><td>Optional. Default 800×600, resizable, min 480×360</td></tr>
-                <tr><td><code>mcp</code></td><td>Optional. Expose tools to the on-device assistant</td></tr>
-              </tbody>
-            </table>
+            <h3 id="quickstart-sdk">How the SDK enters the page</h3>
+            <p>When a plugin opens, the app's local page server:</p>
+            <ol>
+              <li>Serves <code>/sdk.js</code></li>
+              <li>Inserts that script when it returns the plugin HTML</li>
+              <li>Strips a handwritten <code>sdk.js</code> reference so the script is not loaded twice</li>
+            </ol>
+            <p>The page runs in a sandboxed iframe: <code>sandbox="allow-scripts allow-forms allow-modals"</code>, without <code>allow-same-origin</code>.</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>What you see</th><th>What it means</th></tr></thead>
+                <tbody>
+                  <tr><td>Opaque origin (<code>Origin: null</code>)</td><td>The page is not same-origin with the shell</td></tr>
+                  <tr><td>The shell cannot read the iframe document</td><td>The shell cannot inject a script. The SDK must be injected when the page server returns the HTML</td></tr>
+                  <tr><td><code>localStorage</code> is unavailable</td><td>Write config to <code>fs.dataDir()</code></td></tr>
+                  <tr><td><code>window.confirm</code> / <code>alert</code> work</td><td>The sandbox includes <code>allow-modals</code>. If you build your own confirm UI, do not assume a system dialog will appear</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 id="quickstart-run">Run it in the app</h3>
+            <ol>
+              <li>Zip the plugin (after unzip, <code>manifest.json</code> is at the root), or place the folder in the app's plugin directory with the folder name equal to <code>manifest.id</code></li>
+              <li>Open PixiuCut → Plugin manager → Install from zip, or click Refresh after placing the folder</li>
+              <li>After the user confirms permissions, the home screen shows the entry declared in <code>slots</code></li>
+              <li>Press <code>F12</code> in the plugin window for the page console. <code>PixiuCutPlugin.log()</code> is prefixed with <code>[plugin:your-id]</code></li>
+            </ol>
+            <p>After editing HTML or scripts, close the plugin window and open it again. Each open is a fresh page. UI state that was not written to <code>fs.dataDir()</code> is gone. Granted permissions are not asked again.</p>
+            <p>Zip size limit: <strong>80MB</strong>.</p>
+
+            <h2 id="package">3. Package</h2>
+            <h3 id="package-layout">Layout</h3>
+            <pre class="code"><code>com.example.myplugin/
+├── manifest.json
+├── index.html
+└── assets/
+    ├── icon.png
+    └── style.css</code></pre>
+            <p>There is no required build tool. Plain HTML, or a single entry page built with React / Vue / Svelte, is fine. Treat <code>PixiuCutPlugin</code> as a global and do not bundle it. Static assets use paths relative to the plugin root, for example <code>assets/style.css</code>.</p>
+
+            <h3 id="package-manifest">manifest.json</h3>
+            <pre class="code"><code>{
+  "id": "com.example.myplugin",
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "description": "What this plugin does",
+  "author": "Author",
+  "homepage": "https://example.com",
+  "main": "index.html",
+  "sdkVersion": "^1.0.0",
+  "appVersion": "&gt;=1.1.0",
+  "permissions": ["draft.read", "draft.write"],
+  "slots": [
+    { "id": "home.shortcut", "label": "My Plugin", "icon": "assets/icon.png" }
+  ],
+  "window": {
+    "width": 800,
+    "height": 600,
+    "resizable": true,
+    "minWidth": 480,
+    "minHeight": 360
+  }
+}</code></pre>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Field</th><th>Requirement</th></tr></thead>
+                <tbody>
+                  <tr><td><code>id</code></td><td>Required. Reverse-domain, globally unique. The install folder name matches it</td></tr>
+                  <tr><td><code>name</code> / <code>version</code> / <code>author</code></td><td>Required. <code>version</code> is semver</td></tr>
+                  <tr><td><code>description</code> / <code>homepage</code></td><td>Optional</td></tr>
+                  <tr><td><code>main</code></td><td>Entry HTML. Default <code>index.html</code></td></tr>
+                  <tr><td><code>sdkVersion</code></td><td>Target SDK. Write <code>^1.0.0</code></td></tr>
+                  <tr><td><code>appVersion</code></td><td>Optional. Compatible app version range</td></tr>
+                  <tr><td><code>requiredFeature</code></td><td>Optional. Paid feature key. Omit it for a free plugin</td></tr>
+                  <tr><td><code>permissions</code></td><td>See <a href="#permissions">Permissions</a>. Shown at install</td></tr>
+                  <tr><td><code>slots</code></td><td>Home entry. <code>id</code> is fixed to <code>home.shortcut</code>. <code>icon</code> is a png / svg / jpg / webp relative to the plugin root. A missing or failed icon uses the default</td></tr>
+                  <tr><td><code>window</code></td><td>Optional. Default 800×600, resizable. The app clamps the minimum to 480×360</td></tr>
+                  <tr><td><code>sdkChecksum</code></td><td>Optional, shaped like <code>sha256:…</code>. Only detects an SDK copy mismatch. It is not a security boundary</td></tr>
+                  <tr><td><code>mcp</code></td><td>Optional. Expose tools to the on-device assistant. See below</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 id="package-mcp">Declare assistant tools</h3>
+            <p>Do not listen on a port, and do not implement the MCP protocol. Declare tools in the manifest. After the user opens the plugin and registration succeeds, the app forwards calls into the page.</p>
+            <pre class="code"><code>{
+  "mcp": {
+    "tools": [
+      {
+        "name": "sort_images",
+        "description": "Filter images from a source directory. Paths come from the caller.",
+        "inputSchema": {
+          "type": "object",
+          "required": ["sourceDir", "destDir"],
+          "properties": {
+            "sourceDir": { "type": "string" },
+            "destDir": { "type": "string" }
+          }
+        }
+      }
+    ]
+  }
+}</code></pre>
+            <p><code>mcp.toolsFile</code> may point at a JSON array inside the plugin root (a relative path). <code>tools</code> and <code>toolsFile</code> are mutually exclusive. The file must stay inside the plugin directory.</p>
+            <ul>
+              <li>At most <strong>32</strong> tools per plugin</li>
+              <li><code>name</code> matches <code>^[a-z][a-z0-9_]{0,47}$</code> and is unique inside the plugin</li>
+              <li><code>description</code> is required and is truncated past 512 characters</li>
+              <li><code>inputSchema.type</code> must be <code>object</code>. The schema is at most 8KB and at most 6 levels deep</li>
+              <li>A name that collides with an existing editing command is dropped</li>
+              <li>If there are zero valid tools, or a name is illegal, the whole <code>mcp</code> block is invalid. The plugin can still be installed; it just has no assistant tools</li>
+            </ul>
+            <p>The app encodes the public name: <code>_</code> in the plugin id becomes <code>_u</code>, <code>.</code> becomes <code>_d</code>, then the local name is appended.</p>
+            <p><code>echo_ping</code> on <code>com.example.hello</code> → <code>plugin__com_dexample_dhello__echo_ping</code></p>
+            <p>The encoded id must be unique across installed plugins, or that plugin's <code>mcp</code> block is invalid. Registration is in <a href="#api-mcp">Assistant tools</a>.</p>
 
             <h2 id="permissions">4. Permissions</h2>
-            <p>Users see the permissions at install; <strong>high-risk</strong> ones are highlighted. Declare only what you need.</p>
-            <table>
-              <thead><tr><th>Permission</th><th>Risk</th><th>Enables</th></tr></thead>
-              <tbody>
-                <tr><td><code>draft.read</code></td><td>Low</td><td>list, readBlob, draft.changed</td></tr>
-                <tr><td><code>draft.write</code></td><td>Medium</td><td>create, writeBlob, remove, rename, stageMedia</td></tr>
-                <tr><td><code>fs.read</code> / <code>fs.write</code></td><td>High</td><td>File read/write</td></tr>
-                <tr><td><code>net.fetch</code> / <code>net.local</code></td><td>High</td><td>Internet / loopback requests</td></tr>
-                <tr><td><code>media.probe</code></td><td>Low</td><td>probe, extractAudio, getEncodeCaps</td></tr>
-                <tr><td><code>media.render</code></td><td>High</td><td>Batch split startSplitJob / cancelSplitJob</td></tr>
-                <tr><td><code>export.render</code></td><td>High</td><td>enqueue, cancel, getStatus and export events</td></tr>
-                <tr><td><code>process.spawn</code></td><td>High</td><td>Launch external processes</td></tr>
-                <tr><td><code>ui.notify</code> / <code>ui.pickFiles</code> / <code>ui.pickDirectory</code></td><td>Low</td><td>Notify, pick files/dirs</td></tr>
-              </tbody>
-            </table>
-            <p>These are open by default without declaration: <code>plugin.ready/resize/close/log/packageDir/setBusy</code>, <code>ui.getAppInfo</code>, <code>license.isActive/trialDaysLeft</code>, <code>events.subscribe</code>, and <code>fs.dataDir</code> with its read/write.</p>
+            <p>The user sees the permission list at install. High-risk items are called out separately. Declare only what the feature needs.</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Permission</th><th>Risk</th><th>Methods</th></tr></thead>
+                <tbody>
+                  <tr><td><code>draft.read</code></td><td>Low</td><td><code>draft.list</code>, <code>draft.readBlob</code>, and <code>draft.changed</code></td></tr>
+                  <tr><td><code>draft.write</code></td><td>Medium</td><td><code>draft.create</code>, <code>draft.writeBlob</code>, <code>draft.remove</code>, <code>draft.rename</code>, <code>draft.stageMedia</code></td></tr>
+                  <tr><td><code>fs.read</code></td><td><strong>High</strong></td><td><code>fs.readFile</code>, <code>fs.readFileRange</code>, <code>fs.readDir</code>, <code>fs.stat</code>, <code>fs.exists</code></td></tr>
+                  <tr><td><code>fs.write</code></td><td><strong>High</strong></td><td><code>fs.writeFile</code>, <code>fs.mkdir</code>, <code>fs.remove</code>, <code>fs.copyFile</code>, <code>fs.rename</code></td></tr>
+                  <tr><td><code>net.fetch</code></td><td><strong>High</strong></td><td><code>net.fetch</code>, plus page <code>fetch</code> / <code>WebSocket</code> to the internet</td></tr>
+                  <tr><td><code>net.local</code></td><td><strong>High</strong></td><td>On top of <code>net.fetch</code>, also allows loopback addresses</td></tr>
+                  <tr><td><code>media.probe</code></td><td>Low</td><td><code>media.probe</code>, <code>media.extractAudio</code>, <code>media.getEncodeCaps</code></td></tr>
+                  <tr><td><code>media.render</code></td><td><strong>High</strong></td><td><code>media.startSplitJob</code>, <code>media.cancelSplitJob</code>, and <code>media.splitJobProgress</code></td></tr>
+                  <tr><td><code>asr.transcribe</code></td><td>Low</td><td><code>asr.getStatus</code>, <code>asr.transcribe</code>, <code>asr.cancel</code>, and <code>asr.progress</code></td></tr>
+                  <tr><td><code>ui.notify</code></td><td>Low</td><td><code>ui.notify</code></td></tr>
+                  <tr><td><code>ui.pickFiles</code></td><td>Low</td><td><code>ui.pickFiles</code></td></tr>
+                  <tr><td><code>ui.pickDirectory</code></td><td>Low</td><td><code>ui.pickDirectory</code></td></tr>
+                  <tr><td><code>ui.shell</code></td><td>Low</td><td><code>ui.showItemInFolder</code></td></tr>
+                  <tr><td><code>export.render</code></td><td><strong>High</strong></td><td><code>export.enqueue</code>, <code>export.cancel</code>, <code>export.getStatus</code>, and export events</td></tr>
+                  <tr><td><code>process.spawn</code></td><td><strong>High</strong></td><td><code>process.start</code>, <code>process.run</code>, <code>process.wait</code>, <code>process.kill</code>, <code>process.list</code>, and process events</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>These are open to an enabled plugin without a permission:</p>
+            <ul>
+              <li><code>plugin.ready</code>, <code>plugin.resize</code>, <code>plugin.close</code>, <code>plugin.log</code>, <code>plugin.packageDir</code>, <code>plugin.setBusy</code></li>
+              <li><code>ui.getAppInfo</code></li>
+              <li><code>license.isActive</code>, <code>license.trialDaysLeft</code></li>
+              <li><code>events.subscribe</code>, <code>events.unsubscribe</code> (the event itself still needs the permission above)</li>
+              <li><code>fs.dataDir</code>, and read/write of that directory</li>
+              <li><code>mcp.register</code> (the tool still only has the permissions the plugin was granted)</li>
+            </ul>
+            <p><code>fs.write</code>, <code>fs.read</code>, <code>net.fetch</code>, <code>net.local</code>, <code>export.render</code>, <code>process.spawn</code>, and <code>media.render</code> are explained separately in the install confirm.</p>
+            <div class="callout">This version has no cloud-account API. Calling <code>cloud.*</code> returns <code>UNKNOWN_METHOD</code>.</div>
 
             <h2 id="api">5. SDK API</h2>
-            <p>Global object <code>window.PixiuCutPlugin</code>; async methods return Promises and throw <code>PluginError</code> (<code>err.code</code>) on failure. Default per-call timeout is 60 seconds.</p>
-            <h3>Drafts</h3>
-            <pre class="code"><code>const drafts = await PixiuCutPlugin.draft.list()
-// { id, name, dir, created, modified, durationUs?, thumbnail, type }
+            <p>Global object: <code>window.PixiuCutPlugin</code>. Async methods return a Promise. Failure throws <code>PluginError</code> (<code>err.name === 'PluginError'</code>, <code>err.code</code> is the error code).</p>
+            <p>Unless named below, a single call times out after <strong>60 seconds</strong> with <code>TIMEOUT</code>. <code>media.startSplitJob</code>, <code>media.cancelSplitJob</code>, <code>asr.transcribe</code>, and <code>asr.cancel</code> are not under that timeout.</p>
 
-const { blob, version } = await PixiuCutPlugin.draft.readBlob(draftId)
-const summary = await PixiuCutPlugin.draft.create(name, blob?)  // blob acts as a template
-const res = await PixiuCutPlugin.draft.writeBlob(id, blob, version) // version for conflict check
-await PixiuCutPlugin.draft.remove(id)
+            <h3 id="api-draft">Drafts</h3>
+            <p>Needs <code>draft.read</code> or <code>draft.write</code>.</p>
+            <pre class="code"><code>const drafts = await PixiuCutPlugin.draft.list()
+// ProjectSummary:
+// { id, name, dir, created, modified, durationUs?, thumbnail, type }
+// created / modified are Unix seconds; durationUs is the timeline length in microseconds
+
+const result = await PixiuCutPlugin.draft.readBlob(draftId)
+// { blob: string, version: string } | null
+// version is an etag. writeBlob uses it to detect conflicts
+
+const summary = await PixiuCutPlugin.draft.create(name, blob?)
+// no blob: empty draft (default 9:16)
+// with blob: use it as a template. The app mints a new id,
+// rewrites name / created / modified, and clears thumbnail
+
+const res = await PixiuCutPlugin.draft.writeBlob(id, blob, version)
+// { ok: boolean, conflict?: boolean, version?: string }
+// conflict === true: the draft changed after the read. readBlob again
+
+await PixiuCutPlugin.draft.remove(id)   // soft delete, goes to the trash
 await PixiuCutPlugin.draft.rename(id, newName)
+
+// Copy a source file into that draft's media directory and return the absolute path.
+// Then write the path into clip.file_path
 const { path } = await PixiuCutPlugin.draft.stageMedia(draftId, srcPath)</code></pre>
-            <h3>Media probe</h3>
+            <ul>
+              <li><code>draft.create</code> ignores <code>project_info.id</code> in the template. Keeping the source draft id mixes up the index. Use <code>summary.id</code> from <code>create</code></li>
+              <li>While the editor has a draft open, <code>writeBlob</code> / <code>remove</code> / <code>rename</code> / <code>stageMedia</code> on it return <code>DRAFT_BUSY</code></li>
+              <li>Deleting a draft also removes its media directory. <code>stageMedia</code> is desktop-only</li>
+            </ul>
+
+            <h3 id="api-fs">Files</h3>
+            <p>Needs <code>fs.read</code> or <code>fs.write</code>, except for the plugin's own data directory.</p>
+            <pre class="code"><code>const text = await PixiuCutPlugin.fs.readFile(path)           // utf8 by default
+const text = await PixiuCutPlugin.fs.readFile(path, 'utf8')
+const buf  = await PixiuCutPlugin.fs.readFile(path, 'binary') // ArrayBuffer
+const b64  = await PixiuCutPlugin.fs.readFile(path, 'base64') // small files only
+
+const chunk = await PixiuCutPlugin.fs.readFileRange(path, offset, length)
+
+await PixiuCutPlugin.fs.writeFile(path, data, encoding?)
+
+const entries = await PixiuCutPlugin.fs.readDir(path)
+// { name, isDir, size, mtimeMs }[]
+
+await PixiuCutPlugin.fs.mkdir(path, recursive?)
+await PixiuCutPlugin.fs.remove(path)
+
+const info = await PixiuCutPlugin.fs.stat(path)   // { size, mtimeMs, isDir } | null
+const exists = await PixiuCutPlugin.fs.exists(path)
+
+await PixiuCutPlugin.fs.copyFile(src, dest)
+await PixiuCutPlugin.fs.copyFile(src, dest, { overwrite: true })
+
+await PixiuCutPlugin.fs.rename(src, dest)
+await PixiuCutPlugin.fs.rename(src, dest, { overwrite: true })
+
+const dir = await PixiuCutPlugin.fs.dataDir()</code></pre>
+            <ul>
+              <li>App-private data (draft store, config, login) is invisible to <code>fs.*</code>. Access returns <code>PATH_DENIED</code></li>
+              <li>Exception: the directory from <code>fs.dataDir()</code> is readable and writable without <code>fs.read</code> / <code>fs.write</code>. Plugin updates keep this directory by default</li>
+              <li>Writes into the app install directory are denied by default</li>
+              <li><code>readFile</code> / <code>writeFile</code> are about <strong>32MB</strong> per call. <code>readFileRange</code> is about <strong>8MB</strong>. Over that is <code>PAYLOAD_TOO_LARGE</code></li>
+              <li><code>copyFile</code> / <code>rename</code> are not under that size cap. <code>overwrite</code> defaults to <code>false</code>; an existing target is <code>CONFLICT</code>. Both move files, not directory trees</li>
+              <li>Large video uses <code>'binary'</code> or <code>readFileRange</code>. <code>'base64'</code> inflates the payload and goes through text serialization</li>
+              <li>Paths are absolute</li>
+            </ul>
+
+            <h3 id="api-net">Network</h3>
+            <p>Needs <code>net.fetch</code>. Loopback also needs <code>net.local</code>.</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Path</th><th>Method</th><th>Use</th></tr></thead>
+                <tbody>
+                  <tr><td>Proxy</td><td><code>PixiuCutPlugin.net.fetch(url, opts)</code></td><td>Ordinary requests, and targets that are hostile to CORS. The app applies a shared timeout and size cap</td></tr>
+                  <tr><td>Direct</td><td>Page <code>fetch()</code> / <code>WebSocket</code></td><td>Streaming responses (for example token-by-token model output). The plugin owns timeout, retry, and tokens</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <pre class="code"><code>const res = await PixiuCutPlugin.net.fetch('https://api.example.com/data', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ key: 'value' }),
+  responseType: 'text',   // 'text' (default) | 'binary'
+  timeoutMs: 30000,
+})
+// { status, headers, body: string | ArrayBuffer }</code></pre>
+            <p>The proxy defaults to a 30 second timeout and an <strong>8MB</strong> body, and it rechecks redirects. Direct calls have neither limit. The app adds CORS headers for the plugin page, so most internet APIs can use <code>fetch</code> directly. If the target answers a preflight with 4xx, use <code>net.fetch</code>.</p>
+            <p>With <code>net.local</code>, you can reach services on <code>127.0.0.1</code>, <code>localhost</code>, and <code>::1</code> (for example a local model). Ports the app itself is using stay denied.</p>
+
+            <h3 id="api-media">Media</h3>
+            <p><strong>Probe</strong> needs <code>media.probe</code>. Opening a plugin from home may happen before the editing engine has started. The app waits briefly; the timeout is <code>ENGINE_UNAVAILABLE</code>.</p>
             <pre class="code"><code>const info = await PixiuCutPlugin.media.probe(filePath)
-// { success, type, width, height, durationUs, frameRate, codec }
-const audio = await PixiuCutPlugin.media.extractAudio(filePath, { format: 'wav' })</code></pre>
-            <h3>Delegated export</h3>
+// success: { success: true, type: 'video'|'audio'|'image', fileName, filePath,
+//            width, height, durationUs, frameRate, codec }
+// failure: { success: false, error, fileName, filePath }</code></pre>
+            <p><strong>Extract audio</strong> also needs <code>media.probe</code>. The app writes a wav to a temp path.</p>
+            <pre class="code"><code>const result = await PixiuCutPlugin.media.extractAudio(filePath, {
+  format: 'wav',      // wav only for now
+  streamIndex: 0,     // audio stream index, default 0
+})
+// success: { success: true, outputPath, durationUs, sampleRate, channels, codec }
+// failure: { success: false, error }</code></pre>
+            <p><code>durationUs</code> is microseconds. Take video and audio duration from the probe result.</p>
+            <p><strong>Encode capabilities</strong> need <code>media.probe</code>:</p>
+            <pre class="code"><code>const caps = await PixiuCutPlugin.media.getEncodeCaps()
+// { splitJob, sceneSilence, gpuAvailable, recommendedH264, recommendedHevc }</code></pre>
+            <p><strong>Batch split</strong> needs <code>media.render</code>. <code>outputDir</code> must be absolute. Read <code>getEncodeCaps()</code> first: when <code>sceneSilence === false</code>, do not use <code>mode: 'scene'</code> / <code>'silence'</code>, and do not pass <code>useGpu: true</code>.</p>
+            <pre class="code"><code>PixiuCutPlugin.on('media.splitJobProgress', (p) => {
+  // jobProgress, phase, fileIndex, fileCount, inputPath,
+  // segmentIndex, segmentCount, activeSlots, fileError, silenceNotFound
+})
+
+const result = await PixiuCutPlugin.media.startSplitJob({
+  files: [{ inputPath: 'D:\\a.mp4', outputDir: 'D:\\out\\a' }],
+  mode: 'time', // 'time' | 'count' | 'trim' | 'scene' | 'silence'
+  modeOptions: {
+    minDurationUs: 5_000_000,
+    maxDurationUs: 5_000_000,
+    // count: minCount, maxCount
+    // trim:  startTrimUs, endTrimUs
+    // scene: contentThreshold (0.10–0.50, sent as-is), mergeMinDurationUs, dropShorterThanUs
+    // silence: noiseDb, minSilenceUs, minSegmentUs, silenceType, recombine
+  },
+  maxConcurrency: 2,
+  // useGpu: false,
+  // mutate: { enlarge, speed, mirrorAlternate, trimEndsUs, removeAudio, extractAudio }
+})
+// { ok, cancelled, files: [{ inputPath, ok, error, segmentCount, outputDir, usedGpu, … }], error }
+
+await PixiuCutPlugin.media.cancelSplitJob()</code></pre>
+            <ul>
+              <li>Cut points, enlarge, and speed changes happen in the app. Do not loop one call per segment</li>
+              <li><code>contentThreshold</code> outside 0.10–0.50 is rejected. The app does not clamp it</li>
+              <li>With <code>mode: 'silence'</code> and no silence ranges, the whole file is copied as one segment. That file may still be <code>ok: true</code> with <code>silenceNotFound: true</code></li>
+            </ul>
+            <p>On-device speech recognition is <a href="#api-asr">below</a>.</p>
+
+            <h3 id="api-ui">UI</h3>
+            <pre class="code"><code>await PixiuCutPlugin.ui.notify('Done')
+await PixiuCutPlugin.ui.notify('Something failed', 'error') // 'info' | 'success' | 'warning' | 'error'
+
+const files = await PixiuCutPlugin.ui.pickFiles({
+  title: 'Choose videos',
+  filters: [{ name: 'Video', extensions: ['mp4', 'mov', 'mkv'] }],
+  multiple: true,
+})
+// string[]. Cancel is []
+
+const dir = await PixiuCutPlugin.ui.pickDirectory({
+  title: 'Choose an output directory',
+  defaultPath: lastDir || undefined,
+})
+// string | null
+
+const ok = await PixiuCutPlugin.ui.showItemInFolder(dirOrFilePath)
+// boolean. Does not require fs.read
+
+const info = await PixiuCutPlugin.ui.getAppInfo()
+// { version: string, platform: 'electron' | 'browser' }
+
+const active = await PixiuCutPlugin.license.isActive()
+const days = await PixiuCutPlugin.license.trialDaysLeft()</code></pre>
+            <p>Pick a directory with <code>ui.pickDirectory</code> and files with <code>ui.pickFiles</code>. <code>ui.getAppInfo</code> and <code>license.*</code> need no permission.</p>
+
+            <h3 id="api-export">Delegated export</h3>
+            <p>Needs <code>export.render</code>. This sends a draft that is <strong>already on disk</strong> into the same queue as the home task center, using the app's encoder. <code>draft.create</code> first, then enqueue.</p>
             <pre class="code"><code>const { queueId } = await PixiuCutPlugin.export.enqueue(
-  [{ draftId: 'proj_…', outputDir: 'D:/exports', fileName: 'My title' }],
-  { config: { format: 'mp4', vcodec: 'libx264', resolution: 1080, frameRate: 30 } },
+  [
+    { draftId: 'proj_…', outputDir: 'D:/exports', fileName: 'Final title' },
+    { draftId: 'proj_…', outputDir: 'D:/exports' },
+  ],
+  {
+    config: {
+      format: 'mp4',          // mp4 | mov
+      vcodec: 'libx264',      // libx264 | libx265 | av1
+      resolution: 1080,       // 480 | 720 | 1080; omit to use the draft canvas
+      frameRate: 30,          // 24 | 25 | 30 | 60; omit to use the draft canvas
+      bitrateMode: 'preset',  // preset | cbr | crf
+      quality: 1,             // 0 | 1 | 2, preset only
+      videoBitrate: 8_000_000,
+      crf: 23,
+      audioBitrate: 192000,
+      preset: 'medium',       // veryfast | medium | slow
+    },
+    // Omit to follow the home "delete draft after export" setting.
+    // Pass it to override.
+    // deleteAfterExport: false,
+  },
 )
-PixiuCutPlugin.on('export.progress', ({ draftId, percent }) => {})
-PixiuCutPlugin.on('export.queueIdle', ({ queueId }) => {})</code></pre>
-            <h3>UI & lifecycle</h3>
-            <pre class="code"><code>await PixiuCutPlugin.ui.notify('Done', 'success')
-const files = await PixiuCutPlugin.ui.pickFiles({ multiple: true })
-const dir = await PixiuCutPlugin.ui.pickDirectory()
+
+PixiuCutPlugin.on('export.progress', ({ queueId, draftId, percent }) => {})
+PixiuCutPlugin.on('export.jobCompleted', ({ queueId, draftId, outputFile }) => {})
+PixiuCutPlugin.on('export.jobFailed', ({ queueId, draftId, message }) => {})
+PixiuCutPlugin.on('export.queueIdle', ({ queueId }) => {})
+
+await PixiuCutPlugin.export.cancel('current')     // the job that is exporting
+await PixiuCutPlugin.export.cancel('remaining')   // queued jobs that have not started
+await PixiuCutPlugin.export.cancel(queueId)       // this batch only
+
+const snap = await PixiuCutPlugin.export.getStatus(queueId)
+// { queueId, running, jobs: [{ draftId, status, progress, outputFile, error }] }</code></pre>
+            <ul>
+              <li>Every job in one batch must share the same <code>outputDir</code>, and it must be a directory</li>
+              <li><code>fileName</code> is optional and is the output name without an extension. Omit it to use the draft name. A name collision is avoided automatically</li>
+              <li>Keys present in <code>config</code> override defaults. Format, bitrate, and codec that are absent follow the last export preference. Resolution and frame rate that are absent follow the draft canvas</li>
+              <li>If the queue is idle or paused, enqueue starts export. If export is already running, the jobs are appended</li>
+              <li>A <code>draftId</code> already queued or exporting is skipped. The rest of the batch still enqueues</li>
+              <li>A failure is skipped and the next job continues</li>
+              <li>A successful cancel does not always emit a terminal event for that job. The batch is finished at <code>export.queueIdle</code></li>
+              <li>Enqueue while the editor is open returns <code>EXPORT_BUSY</code></li>
+              <li>An unknown draft id returns <code>NOT_FOUND</code></li>
+              <li>Without <code>export.render</code>, the UI only promises to create drafts</li>
+            </ul>
+
+            <h3 id="api-process">External processes</h3>
+            <p>Needs <code>process.spawn</code>. The plugin page has no Node, and it cannot assemble a shell command. <code>file</code> must be an existing absolute path. <code>args</code> must be an array of strings.</p>
+            <pre class="code"><code>const r = await PixiuCutPlugin.process.run('C:/tools/ffmpeg.exe', ['-version'])
+// { handle, pid, code, signal, stdout, stderr, killed, truncatedStdout, truncatedStderr }
+
+const { handle, pid } = await PixiuCutPlugin.process.start(
+  'C:/tools/ffmpeg.exe',
+  ['-i', src, '-y', out],
+  { cwd: 'D:/work', env: { MY_FLAG: '1' } },
+)
+PixiuCutPlugin.on('process.stdout', ({ handle, text, truncated }) => {})
+PixiuCutPlugin.on('process.stderr', ({ handle, text, truncated }) => {})
+PixiuCutPlugin.on('process.exited', ({ handle, pid, code, signal, killed, truncatedStdout, truncatedStderr }) => {})
+
+const done = await PixiuCutPlugin.process.wait(handle)
+await PixiuCutPlugin.process.kill(handle)
+const live = await PixiuCutPlugin.process.list()
+// [{ handle, pid, file }]</code></pre>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
+                <tbody>
+                  <tr><td><code>cwd</code></td><td>Absolute path. Defaults to this plugin's <code>fs.dataDir()</code></td></tr>
+                  <tr><td><code>env</code></td><td>Extra environment variables. Variables tied to the app runtime (including the <code>ELECTRON_</code> prefix) are removed</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <ul>
+              <li>You cannot start PixiuCut itself or its bundled engine. An executable inside the plugin package is allowed. Join it with <code>packageDir()</code></li>
+              <li>At most 1024 arguments. Each argument is about 32K characters</li>
+              <li>stdout and stderr are pushed as UTF-8. Each stream is truncated after <strong>256KB</strong> (<code>truncated: true</code>). Have the child write large binary to a file, then read it with <code>fs.*</code></li>
+              <li>Closing the plugin window, uninstalling the plugin, or quitting the app ends the process tree that plugin started. A long-running local service should be started by the user, then reached with <code>net.local</code></li>
+              <li><code>run</code> / <code>wait</code> are under the 60 second SDK timeout. For a long job, use <code>start</code> and finish on <code>process.exited</code></li>
+              <li>For about 60 seconds after exit, <code>wait(handle)</code> can still read that exit. After that it is <code>NOT_FOUND</code></li>
+            </ul>
+
+            <h3 id="api-events">Events</h3>
+            <pre class="code"><code>const unsubscribe = PixiuCutPlugin.on('draft.changed', (payload) => {
+  console.log(payload)
+})
+unsubscribe()</code></pre>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Event</th><th>payload</th><th>Permission</th></tr></thead>
+                <tbody>
+                  <tr><td><code>draft.changed</code></td><td><code>{ id, op }</code>, <code>op</code> is <code>create</code> / <code>write</code> / <code>remove</code> / <code>rename</code></td><td><code>draft.read</code></td></tr>
+                  <tr><td><code>export.progress</code></td><td><code>{ queueId, draftId, percent }</code></td><td><code>export.render</code></td></tr>
+                  <tr><td><code>export.jobCompleted</code></td><td><code>{ queueId, draftId, outputFile }</code></td><td><code>export.render</code></td></tr>
+                  <tr><td><code>export.jobFailed</code></td><td><code>{ queueId, draftId, message }</code></td><td><code>export.render</code></td></tr>
+                  <tr><td><code>export.queueIdle</code></td><td><code>{ queueId }</code></td><td><code>export.render</code></td></tr>
+                  <tr><td><code>media.splitJobProgress</code></td><td>See <a href="#api-media">Media</a></td><td><code>media.render</code></td></tr>
+                  <tr><td><code>asr.progress</code></td><td><code>{ phase, percent }</code>, <code>phase</code> is <code>extract</code> or <code>transcribe</code></td><td><code>asr.transcribe</code></td></tr>
+                  <tr><td><code>process.stdout</code></td><td><code>{ handle, text, truncated }</code></td><td><code>process.spawn</code></td></tr>
+                  <tr><td><code>process.stderr</code></td><td><code>{ handle, text, truncated }</code></td><td><code>process.spawn</code></td></tr>
+                  <tr><td><code>process.exited</code></td><td><code>{ handle, pid, code, signal, killed, truncatedStdout, truncatedStderr }</code></td><td><code>process.spawn</code></td></tr>
+                  <tr><td><code>plugin.willUnload</code></td><td><code>{}</code></td><td>none</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p><code>plugin.willUnload</code> does not guarantee that an async save will finish. Write important data to <code>fs.dataDir()</code> after each step. Subscribing to an unlisted event name returns <code>UNKNOWN_METHOD</code>.</p>
+
+            <h3 id="api-lifecycle">Lifecycle</h3>
+            <pre class="code"><code>const root = await PixiuCutPlugin.packageDir()
+// Bundled program: process.start(root + '/vendor/tool.exe', args)
+// Ship binaries inside the package. Keep preferences and cache in fs.dataDir()
+
+await PixiuCutPlugin.setBusy(true)
+// While true, closing the window asks for confirmation, then ends processes this plugin started
+await PixiuCutPlugin.setBusy(false)
+
 await PixiuCutPlugin.ready()
-await PixiuCutPlugin.setBusy(true)   // during long tasks
-const root = await PixiuCutPlugin.packageDir()
-const data = await PixiuCutPlugin.fs.dataDir()  // read/write without permission</code></pre>
-            <div class="callout">Also available: <code>fs.*</code> file ops, <code>net.fetch</code> network proxy, <code>process.*</code> external processes, <code>media.startSplitJob</code> batch splitting, and <code>mcp.*</code> to register tools with the on-device assistant. Full signatures ship with the app's bundled guide.</div>
+await PixiuCutPlugin.resize(900, 700)
+await PixiuCutPlugin.close()
+
+PixiuCutPlugin.log('info', 'button clicked', { detail: '...' })
+// level: 'log' | 'info' | 'warn' | 'error'</code></pre>
+            <p>Call <code>ready()</code> after init. If you declared <code>mcp.tools</code>, finish <a href="#api-mcp">assistant registration</a> after <code>ready()</code> and before starting a long-running child process.</p>
+
+            <h3 id="api-mcp">Register assistant tools</h3>
+            <pre class="code"><code>await PixiuCutPlugin.ready()
+
+PixiuCutPlugin.mcp.onCall('sort_images', async (args) => {
+  // args already include paths. Do not call ui.pickDirectory / ui.pickFiles here
+  return { ok: true, copied: 12 }
+})
+
+await PixiuCutPlugin.mcp.register([{ name: 'sort_images' }])</code></pre>
+            <ul>
+              <li>The name set passed to <code>register</code> must match the valid tools in the manifest <strong>exactly</strong>. One missing or extra name fails the whole call. The result is <code>{ ok: true, registered: string[] }</code></li>
+              <li>Assistant calls reach <code>onCall</code> only after the window is open and registration succeeded. The handler argument is the caller's object. The return value must be JSON-serializable. A thrown error that has <code>code</code> is passed back as-is</li>
+              <li>For a long job, return <code>{ ok: true, jobId }</code> quickly and expose progress through another tool of this plugin. The app treats a single call as timed out after about 60 seconds</li>
+              <li>The assistant does not request extra plugin permissions. It can only trigger capabilities the user already granted at install</li>
+            </ul>
+            <p>Manifest declaration is in <a href="#package-mcp">Declare assistant tools</a>.</p>
+
+            <h3 id="api-errors">Errors</h3>
+            <pre class="code"><code>try {
+  await PixiuCutPlugin.draft.writeBlob(id, blob, version)
+} catch (err) {
+  if (err.name !== 'PluginError') throw err
+  switch (err.code) {
+    case 'PERMISSION_DENIED':
+    case 'DRAFT_BUSY':
+    case 'EXPORT_BUSY':
+    case 'CONFLICT':
+    case 'VERSION_REQUIRED':
+    case 'INVALID_DRAFT':
+    case 'NOT_FOUND':
+    case 'RATE_LIMITED':
+    case 'PATH_DENIED':
+    case 'PAYLOAD_TOO_LARGE':
+    case 'ENGINE_UNAVAILABLE':
+    case 'HOST_DENIED':
+    case 'TIMEOUT':
+    case 'INTERNAL':
+      break
+  }
+}</code></pre>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+                <tbody>
+                  <tr><td><code>PERMISSION_DENIED</code></td><td>Not declared, or the user did not grant it</td></tr>
+                  <tr><td><code>UNKNOWN_METHOD</code></td><td>The method or event name does not exist</td></tr>
+                  <tr><td><code>NOT_FOUND</code></td><td>Draft, file, or process handle does not exist</td></tr>
+                  <tr><td><code>DRAFT_BUSY</code></td><td>That draft is open in the editor</td></tr>
+                  <tr><td><code>EXPORT_BUSY</code></td><td>The editor is open, so export cannot be queued</td></tr>
+                  <tr><td><code>CONFLICT</code></td><td>etag conflict, or the <code>copyFile</code> / <code>rename</code> target already exists</td></tr>
+                  <tr><td><code>VERSION_REQUIRED</code></td><td><code>writeBlob</code> was called without <code>version</code></td></tr>
+                  <tr><td><code>INVALID_DRAFT</code></td><td>JSON cannot be parsed, <code>format_version</code> is not <code>"1.2"</code>, or a clip lacks <code>name</code> / a finite <code>start_time</code></td></tr>
+                  <tr><td><code>PAYLOAD_TOO_LARGE</code></td><td>Over the per-call size limit, including a draft blob</td></tr>
+                  <tr><td><code>HOST_DENIED</code></td><td>This environment rejects the call (for example <code>stageMedia</code> or <code>asr.*</code> off the desktop)</td></tr>
+                  <tr><td><code>PATH_DENIED</code></td><td>The path is not accessible, or the call tried to start the app or its engine</td></tr>
+                  <tr><td><code>RATE_LIMITED</code></td><td>Calls are too frequent</td></tr>
+                  <tr><td><code>ENGINE_UNAVAILABLE</code></td><td>The editing engine is not ready</td></tr>
+                  <tr><td><code>TIMEOUT</code></td><td>Over the default 60 second SDK timeout</td></tr>
+                  <tr><td><code>INTERNAL</code></td><td>Internal app error. <code>message</code> has the detail</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 id="api-asr">On-device speech recognition</h3>
+            <p>Needs <code>asr.transcribe</code>. Pass the absolute path of the user's own video or audio to the app's on-device speech model and get subtitle text back. The app extracts audio, prepares audio for recognition, recognizes it, and turns it into cue entries. The plugin writes the returned <code>srt</code> to a file, or places <code>cues</code> into a new draft as described in <a href="#draft-subtitle">Subtitles</a>. The app does not write the user's directories, does not create a draft, and does not import a timeline. Build TXT yourself from <code>cues</code>.</p>
+            <p>This path is the on-device model only. The return value has no model directory, recognizer binary, activation state, engine preference from Settings, or API key. A key saved in Settings never appears in the plugin page.</p>
+            <div class="callout warn">Batch recognition uses this on-device path. The recognition quota included with the paid edition, and the API key the user saved in Settings, are used only by the editor's Smart subtitle recognition. For a cloud effect, bring your own service: <code>media.extractAudio</code> for a wav, then <code>net.fetch</code> to upload it. Do not ask the user for the key saved in Settings, and do not describe that path as the app's built-in speech recognition.</div>
+            <p>Windows only for now. If the model is not downloaded, or this system has no on-device recognizer, <code>localReady</code> is <code>false</code> and <code>transcribe</code> returns <code>no_model</code>. Show the returned <code>message</code> and point the user at Settings to download the on-device speech model. Do not rewrite that as "please activate the paid edition" or "please enter an API key". The plugin cannot start the download for the user.</p>
+            <pre class="code"><code>const status = await PixiuCutPlugin.asr.getStatus()
+// { localReady: boolean }
+
+PixiuCutPlugin.on('asr.progress', (p) => {
+  // { phase: 'extract' | 'transcribe', percent: 0..100 }
+})
+
+const result = await PixiuCutPlugin.asr.transcribe(filePath, {
+  streamIndex: 0, // optional, default 0
+})
+// success: { ok: true, srt, cues: [{ startUs, endUs, text }], durationUs }
+// no recognizable speech: ok is still true, cues is [], srt is ''
+// failure: { ok: false, code, message }
+
+await PixiuCutPlugin.asr.cancel()
+// { ok: true }. Cancels only the run this plugin started. Also succeeds when nothing is running</code></pre>
+            <ul>
+              <li><code>filePath</code> must be absolute. Files chosen with <code>ui.pickFiles</code>, and files in this plugin's <code>fs.dataDir()</code>, are allowed. An empty path, a relative path, app-private data (draft store, config, model directory), and the app install directory are <code>PATH_DENIED</code>. A missing file is <code>NOT_FOUND</code>. <code>fs.read</code> is not required</li>
+              <li>Pass the original video or audio. Do not extract a wav yourself and then send that to recognition</li>
+              <li>Only one recognition runs globally at a time. If this plugin, the editor, or another caller is already recognizing, the next call returns <code>busy</code>. The app does not queue. For a batch, wait for the previous call to finish</li>
+              <li>Progress: extract stays under 20%. Transcribe is 20–99. Only success reaches 100. Cancel stops further progress. Closing the plugin window cancels this run and deletes the temp audio</li>
+              <li>Failure is in the return value, not a thrown <code>PluginError</code>. Show <code>message</code> as-is</li>
+            </ul>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th><code>code</code></th><th>When</th></tr></thead>
+                <tbody>
+                  <tr><td><code>no_model</code></td><td>On-device model or recognizer is unavailable</td></tr>
+                  <tr><td><code>busy</code></td><td>A recognition is already running</td></tr>
+                  <tr><td><code>no_audio</code></td><td>The file has no audio track, or extraction produced an empty file</td></tr>
+                  <tr><td><code>decode</code></td><td>Recognition failed</td></tr>
+                  <tr><td><code>cancelled</code></td><td>The user cancelled, or the app stopped the run because the plugin window closed</td></tr>
+                  <tr><td><code>unsupported_audio</code></td><td>Audio for recognition could not be prepared</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>If the editing engine is down during extraction, the call throws <code>ENGINE_UNAVAILABLE</code>, the same as <code>media.extractAudio</code>. That is not <code>no_model</code>. Calling this group off the desktop returns <code>HOST_DENIED</code>.</p>
+            <p>When writing a draft, <code>cues.startUs</code> / <code>endUs</code> are already microseconds and map to a subtitle item's <code>start_time</code> / <code>end_time</code>. Do not <code>process.start</code> the app's bundled recognizer.</p>
 
             <h2 id="draft">6. Draft format</h2>
-            <p>A draft blob is a JSON string with <code>format_version</code> fixed to <code>"1.2"</code>. Time fields are in <strong>microseconds (µs)</strong>; <code>project_info.created/modified/last_opened</code> are <strong>seconds</strong> (Unix time).</p>
+            <p>A draft blob is a JSON string. <code>format_version</code> is fixed at <code>"1.2"</code>. Time fields are <strong>microseconds (µs)</strong>. <code>project_info.created</code> / <code>modified</code> / <code>last_opened</code> are Unix time in <strong>seconds</strong>.</p>
+
+            <h3 id="draft-min">Minimal document</h3>
             <pre class="code"><code>{
   "format_version": "1.2",
-  "project_info": { "id": "proj_…", "name": "My video", "created": 1700000000,
-                    "modified": 1700000000, "duration": 0, "status": "editing" },
+  "project_info": {
+    "id": "proj_20240101_120000_abc12345",
+    "name": "My video",
+    "description": "",
+    "created": 1700000000,
+    "modified": 1700000000,
+    "last_opened": 1700000000,
+    "author": "",
+    "thumbnail": "",
+    "duration": 0,
+    "status": "editing"
+  },
   "project_settings": {
     "video": { "width": 1080, "height": 1920, "frame_rate": 30 },
     "audio": { "sample_rate": 48000, "channels": 2 }
   },
   "tracks": [
-    { "id": "track_1", "type": "video", "name": "Main video",
-      "main_track": 1, "clips": [] }
+    {
+      "id": "track_1",
+      "type": "video",
+      "name": "Main video",
+      "main_track": 1,
+      "clips": [],
+      "locked": false,
+      "muted": false,
+      "visible": true
+    }
   ]
 }</code></pre>
-            <p><code>clip.type</code> is an integer: 1 video, 2 audio, 3 image, 4 text, 5 solid, 6 subtitle. Media clips must include <code>name / type / start_time / in_point / out_point / media_duration / duration</code>, where <code>duration = (out_point - in_point) / speed_factor</code>. A subtitle track holds one container clip (<code>type:6</code>, <code>subtitle_container:true</code>); each line is an entry in <code>subtitle_track.items</code>.</p>
+            <p>With no blob, <code>draft.create</code> writes an empty draft of the same shape.</p>
 
-            <h2 id="errors">7. Error codes</h2>
-            <table>
-              <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
-              <tbody>
-                <tr><td><code>PERMISSION_DENIED</code></td><td>Permission not declared or not granted</td></tr>
-                <tr><td><code>UNKNOWN_METHOD</code></td><td>Method or event name doesn't exist</td></tr>
-                <tr><td><code>NOT_FOUND</code></td><td>Draft, file or process handle not found</td></tr>
-                <tr><td><code>DRAFT_BUSY</code> / <code>EXPORT_BUSY</code></td><td>Draft open in editor / editor open, can't enqueue</td></tr>
-                <tr><td><code>CONFLICT</code></td><td>etag conflict, or target file exists</td></tr>
-                <tr><td><code>INVALID_DRAFT</code></td><td>JSON unparseable or invalid format</td></tr>
-                <tr><td><code>PAYLOAD_TOO_LARGE</code></td><td>Exceeds per-call size limit</td></tr>
-                <tr><td><code>ENGINE_UNAVAILABLE</code></td><td>Editing engine not ready</td></tr>
-                <tr><td><code>TIMEOUT</code></td><td>Exceeds the default 60s SDK timeout</td></tr>
-                <tr><td><code>INTERNAL</code></td><td>Internal app error</td></tr>
-              </tbody>
-            </table>
+            <h3 id="draft-clips">Tracks and clips</h3>
+            <p><code>track.type</code> is a string: <code>video</code> / <code>audio</code> / <code>subtitle</code> / <code>effect</code>.</p>
+            <p><code>clip.type</code> is an integer. Do not mix the two:</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>Video</td></tr>
+                  <tr><td>2</td><td>Audio</td></tr>
+                  <tr><td>3</td><td>Image</td></tr>
+                  <tr><td>4</td><td>Text</td></tr>
+                  <tr><td>5</td><td>Solid</td></tr>
+                  <tr><td>6</td><td>Subtitle</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Before save, the host checks that every clip has a non-empty <code>name</code> and a finite <code>start_time</code>. When the project opens, a media clip also needs:</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Field</th><th>Required</th><th>Meaning</th></tr></thead>
+                <tbody>
+                  <tr><td><code>name</code></td><td>Yes</td><td>Display name. Do not write <code>clip_name</code></td></tr>
+                  <tr><td><code>type</code></td><td>Yes</td><td>Integer from the table above</td></tr>
+                  <tr><td><code>file_path</code></td><td>When replacing media</td><td>Absolute file path. Do not write a directory</td></tr>
+                  <tr><td><code>start_time</code></td><td>Yes</td><td>Start on the timeline (µs)</td></tr>
+                  <tr><td><code>in_point</code></td><td>Yes</td><td>Source in-point (µs)</td></tr>
+                  <tr><td><code>out_point</code></td><td>Yes</td><td>Source out-point (µs), greater than <code>in_point</code></td></tr>
+                  <tr><td><code>media_duration</code></td><td>Yes</td><td>Source duration (µs), from <code>media.probe</code></td></tr>
+                  <tr><td><code>duration</code></td><td>Yes</td><td>Length occupied on the timeline (µs)</td></tr>
+                  <tr><td><code>speed_factor</code></td><td>No</td><td>Speed. Default 1. Suggested range 0.25–4</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <pre class="code"><code>duration = (out_point - in_point) / speed_factor</code></pre>
+            <ul>
+              <li>Set <code>main_track</code> to <code>1</code> on a video track to mark the main track. One draft can start from a single main video track</li>
+              <li><code>media_files</code> may be an empty array. When the user later opens the project, the app syncs from clip paths. Prefer <code>draft.stageMedia</code> for files placed into a draft, so deleting the draft also removes the media</li>
+              <li>The app owns thumbnails. <code>draft.create</code> clears <code>project_info.thumbnail</code>. Do not write that field yourself</li>
+            </ul>
+
+            <h3 id="draft-subtitle">Subtitles</h3>
+            <p>A subtitle track holds <strong>one</strong> container clip (<code>type: 6</code>, <code>subtitle_container: true</code>). Each line is an entry in <code>subtitle_track.items</code>, not a separate clip on the track. An item without <code>id</code> is ignored and does not appear on screen.</p>
+            <p>The container's <code>start_time</code> is <code>0</code>. <code>duration</code>, <code>out_point</code>, and <code>media_duration</code> are the maximum <code>end_time</code> among the items.</p>
+            <p>Track-level style lives in <code>subtitle_track.style</code>. For a one-off style, set <code>has_custom_style: true</code> on that item and put the style object in <code>custom_style</code>. Items without it use the track style.</p>
+            <pre class="code"><code>{
+  "id": "track_sub",
+  "type": "subtitle",
+  "name": "Subtitles",
+  "clips": [
+    {
+      "type": 6,
+      "name": "Subtitles",
+      "file_path": "",
+      "start_time": 0,
+      "in_point": 0,
+      "out_point": 4000000,
+      "media_duration": 4000000,
+      "duration": 4000000,
+      "subtitle_container": true,
+      "subtitle_track": {
+        "style_edit_scope": "track",
+        "style": {
+          "font_family": "Microsoft YaHei UI",
+          "font_size": 100,
+          "color": "#FFFFFFFF",
+          "bold": false,
+          "italic": false,
+          "underline": false,
+          "strikethrough": false,
+          "opacity": 1,
+          "background_color": "#00000000",
+          "background_padding": 20,
+          "outline_color": "#FF000000",
+          "outline_width": 0,
+          "letter_spacing": 0,
+          "rotation": 0,
+          "shadow_offset": 0,
+          "shadow_color": "#80000000",
+          "position_x": 7,
+          "position_y": 70,
+          "position_width": 85,
+          "position_height": 8,
+          "alignment": "center",
+          "valign": "middle"
+        },
+        "items": [
+          {
+            "id": "cue_1",
+            "text": "Hello",
+            "start_time": 0,
+            "end_time": 2000000,
+            "duration": 2000000
+          },
+          {
+            "id": "cue_2",
+            "text": "Second line",
+            "start_time": 2000000,
+            "end_time": 4000000,
+            "duration": 2000000,
+            "has_custom_style": true,
+            "custom_style": { "font_size": 80, "color": "#FFFFFF00" }
+          }
+        ]
+      }
+    }
+  ]
+}</code></pre>
+            <ul>
+              <li>Style fields use the snake_case names above. Colors are <code>#AARRGGBB</code> (alpha included)</li>
+              <li><code>font_family</code> is a single family name, not a comma-separated CSS font list. <code>Microsoft YaHei UI</code> is a safe default. <code>font_size</code> is about 8–400. <code>opacity</code> is 0–1</li>
+              <li><code>position_*</code> are percentages of the frame. <code>alignment</code> is <code>left</code> / <code>center</code> / <code>right</code>. <code>valign</code> is <code>top</code> / <code>middle</code> / <code>bottom</code></li>
+              <li><code>outline_width</code> is the outward stroke width. A <code>background_color</code> with zero alpha draws no box</li>
+              <li>Do not overlap two subtitle items. Item <code>id</code> stays unique inside the container. A stable string is enough</li>
+              <li>Separate <code>type: 6</code> clips per line, or a flat <code>text</code> / <code>font_family</code> on the clip, do not show when the project opens</li>
+            </ul>
+
+            <h3 id="draft-rewrite">Rewriting</h3>
+            <ul>
+              <li>Use <code>draft.create</code> for a new result. It does not need an etag, and it does not fail because the editor holds the source draft</li>
+              <li><code>writeBlob</code> must pass the <code>version</code> from <code>readBlob</code></li>
+              <li>How durations line up, and how files are named, is up to the plugin. The app has no "match media by duration" method</li>
+              <li>An older <code>format_version</code> cannot be opened. Do not write a migration</li>
+            </ul>
+
+            <h2 id="debug">7. Debugging</h2>
+            <ol>
+              <li>Install or refresh the plugin (see <a href="#quickstart-run">Run it in the app</a>)</li>
+              <li>Open it from the home entry</li>
+              <li>Press <code>F12</code> for the page console, <code>PixiuCutPlugin.log()</code>, and network requests</li>
+              <li>When checking <code>media.*</code> and <code>export.*</code>, let the app finish starting the engine first. Export progress also appears in the home task center</li>
+              <li>While the plugin window is open, the editor cannot be entered. While the editor is open, enqueue returns <code>EXPORT_BUSY</code>, and writing the draft being edited returns <code>DRAFT_BUSY</code></li>
+            </ol>
+            <p>Do not keep UI state only in memory. Closing and reopening reloads the page.</p>
 
             <h2 id="publish">8. Publishing</h2>
-            <p>Package as a single zip: after extraction, the root is <code>manifest.json</code> and the entry HTML — no extra wrapping folder, size under <strong>80MB</strong>.</p>
-            <ul>
-              <li><strong>Install from zip</strong>: Plugin manager → Installed → "Install from zip"</li>
-              <li><strong>Local folder</strong>: place under the app's plugin directory with the folder named after <code>manifest.id</code>, then "Refresh"</li>
-              <li><strong>Discovery catalog</strong>: provide a record (id, name, latestVersion, downloadUrl, …) to the official catalog maintainer; users install from "Plugins → Discover"</li>
-            </ul>
-            <p>Enabled by default after install, appears as a home shortcut, no restart needed. On update the install directory is replaced while the <code>fs.dataDir()</code> data directory is preserved.</p>
+            <h3 id="publish-zip">Package</h3>
+            <p>One zip. After unzip, <code>manifest.json</code> and the entry HTML are at the root. Do not wrap them in an extra folder. Size at most 80MB.</p>
+            <h3 id="publish-install">How users install</h3>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Way</th><th>Meaning</th></tr></thead>
+                <tbody>
+                  <tr><td>zip</td><td>Plugin manager → Installed → Install from zip</td></tr>
+                  <tr><td>Local folder</td><td>Place a folder named <code>manifest.id</code> in the app plugin directory, then Refresh</td></tr>
+                  <tr><td>Discover</td><td>The user installs from Plugins → Discover. Entries come from the official catalog</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>After install the plugin is enabled, the home shortcut appears, and the app does not need a restart. The user sees the permissions from the manifest. An update replaces the install directory. The <code>fs.dataDir()</code> data directory is kept by default.</p>
 
-            <h2 id="faq">9. FAQ</h2>
+            <h3 id="publish-catalog">Getting into Discover</h3>
+            <p>Send one record to the catalog maintainer. The catalog file itself is:</p>
+            <pre class="code"><code>{
+  "schemaVersion": 1,
+  "plugins": []
+}</code></pre>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Field</th><th>Required</th><th>Meaning</th></tr></thead>
+                <tbody>
+                  <tr><td><code>id</code></td><td>Yes</td><td>Same as <code>manifest.id</code>. Letters, digits, and <code>.</code> <code>_</code> <code>-</code>, length 2–128. No <code>..</code> and no path separators</td></tr>
+                  <tr><td><code>name</code></td><td>Yes</td><td></td></tr>
+                  <tr><td><code>latestVersion</code></td><td>Yes</td><td>semver</td></tr>
+                  <tr><td><code>downloadUrl</code></td><td>Yes</td><td>https URL of the zip</td></tr>
+                  <tr><td><code>description</code> / <code>author</code></td><td>No</td><td>Shown as an empty string when omitted</td></tr>
+                  <tr><td><code>sha256</code></td><td>No</td><td>64 hex digits of the zip. A missing or mismatched value is logged and does not block install</td></tr>
+                  <tr><td><code>sizeBytes</code></td><td>No</td><td>Zip size in bytes. A mismatch is logged only</td></tr>
+                  <tr><td><code>homepage</code> / <code>icon</code> / <code>screenshots</code> / <code>category</code></td><td>No</td><td><code>icon</code> is an https URL or a data URI</td></tr>
+                  <tr><td><code>minSdkVersion</code> / <code>minAppVersion</code></td><td>No</td><td>When not met, Discover shows that the current app does not support it</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Listing is done by the catalog maintainer. This app has no self-serve listing console.</p>
+
+            <h2 id="practices">9. Practices</h2>
+            <h3 id="practice-config">Write config to the data directory</h3>
+            <pre class="code"><code>const dir = await PixiuCutPlugin.fs.dataDir()
+const configPath = dir + '/config.json'
+let config = {}
+if (await PixiuCutPlugin.fs.exists(configPath)) {
+  config = JSON.parse(await PixiuCutPlugin.fs.readFile(configPath))
+}
+config.lastDir = dirPicked
+await PixiuCutPlugin.fs.writeFile(configPath, JSON.stringify(config))</code></pre>
+
+            <h3 id="practice-save">Save first, then notify</h3>
+            <pre class="code"><code>async function doWork() {
+  const result = await processData()
+  await saveToDataDir(result)
+  await PixiuCutPlugin.ui.notify('Done')
+}</code></pre>
+            <p>Do not put the only save inside <code>plugin.willUnload</code>.</p>
+
+            <h3 id="practice-draft">Drafts</h3>
+            <ul>
+              <li>New results use <code>draft.create</code></li>
+              <li>Use <code>summary.id</code> from <code>create</code>. Do not keep the id from the template</li>
+              <li>Before editing clips, have <code>name</code>, <code>start_time</code>, <code>in_point</code>, <code>out_point</code>, <code>media_duration</code>, and <code>duration</code></li>
+              <li>Speed changes only <code>speed_factor</code>, then <code>duration</code> is recomputed from the formula</li>
+            </ul>
+
+            <h3 id="practice-files">Paths and large files</h3>
+            <ul>
+              <li>Directories use <code>ui.pickDirectory</code>. Files use <code>ui.pickFiles</code></li>
+              <li>If you accept a dropped folder: a sandboxed <code>File</code> may not have <code>path</code>. Try <code>File.path</code>, then <code>text/uri-list</code>, then <code>text/plain</code>, then <code>fs.stat</code> to confirm it is a directory. Do not read a dropped video into a Blob and write the whole file back</li>
+              <li>Scan media with <code>fs.readDir</code> plus an extension filter, then <code>media.probe</code> for duration</li>
+              <li>Large files use <code>'binary'</code> or ranges. Mind the 32MB / 8MB caps</li>
+              <li>Call <code>setBusy(true)</code> when a long task starts and <code>setBusy(false)</code> when it ends</li>
+            </ul>
+
+            <h3 id="practice-danger">Put a warning next to a dangerous control</h3>
+            <p>An option that moves, overwrites, or deletes the user's files, or overwrites an existing draft, gets one short sentence on the same row as the control. Confirm again with your own overlay before running it.</p>
+            <p>The first open can show one dismissible note about the main path, and store "read" in <code>fs.dataDir()</code>. Do not pop it on every launch, and do not make it a wizard that must be clicked through.</p>
+            <p>An empty list should state three things: what to pick, what will appear in the list after the pick, and whether the main button changes disk or only creates drafts. When a scan finds nothing, switch the copy to "nothing found…".</p>
+
+            <h3 id="practice-rate">Call rate</h3>
+            <p>Do not fire a heavy call once per file inside a tight loop. <code>draft.create</code> and <code>fs.writeFile</code> are rate limited; pause between items in a batch. Very large JSON can be parsed in a Worker before it is submitted.</p>
+
+            <h2 id="faq">10. FAQ</h2>
             <h3>Can I use React / Vue / Svelte?</h3>
-            <p>Yes. The build output is a single entry HTML. Don't bundle the SDK; mark <code>PixiuCutPlugin</code> as an external global.</p>
+            <p>Yes. The build output is one entry HTML. Do not bundle the SDK, and do not write a script tag for it. Mark <code>PixiuCutPlugin</code> as an external global.</p>
             <h3>Can I call Node.js?</h3>
-            <p>No. System capabilities go through SDK methods. For ffmpeg or bundled tools, use <code>process.spawn</code> with an absolute path, or ship the binary inside the plugin package.</p>
-            <h3>Can I connect to the editing engine directly?</h3>
-            <p>No. Probing, audio extraction, splitting and export all go through the SDK, performed by the app.</p>
+            <p>No. System capabilities go through the SDK methods on this page. For ffmpeg or your own program, start an absolute path with <code>process.spawn</code>, or ship the program inside the plugin package.</p>
+            <h3>Why can't the window shell inject a script into the page?</h3>
+            <p>The sandbox has no <code>allow-same-origin</code>, so the shell cannot read the page document. The SDK is injected only when the page server returns the HTML.</p>
             <h3>Can plugins call each other?</h3>
             <p>No. The handoff is: plugin A creates a draft, then the user opens plugin B to read it.</p>
+            <h3>Can I connect to the editing engine directly?</h3>
+            <p>No. Probe, audio extract, split, export, and on-device speech recognition all go through the SDK, and the app performs them.</p>
+            <h3>How long is the timeout?</h3>
+            <p>60 seconds by default, code <code>TIMEOUT</code>. <code>media.startSplitJob</code>, <code>media.cancelSplitJob</code>, <code>asr.transcribe</code>, and <code>asr.cancel</code> are outside that limit. <code>net.fetch</code> defaults to 30 seconds and can be changed with <code>timeoutMs</code>.</p>
+            <h3>Can a plugin use the app's speech recognition?</h3>
+            <p>Yes, the on-device speech model only. Pass the absolute path of a video or audio file to <code>asr.transcribe</code>, then write the subtitle text as SRT or TXT yourself. See <a href="#api-asr">On-device speech recognition</a>. The model directory, recognizer, and API key are not given to the plugin.</p>
+            <p>If the on-device model is not downloaded, the result is <code>no_model</code>. Show the returned <code>message</code> and point the user at Settings to download it. Do not rewrite that as "please activate the paid edition" or "please enter an API key".</p>
+            <p>Cloud recognition does not go through plugins. The quota included with the paid edition, and the API key saved in Settings, are used only by the editor's Smart subtitle recognition. For a cloud effect, bring your own service: <code>media.extractAudio</code> for a wav, then <code>net.fetch</code> to upload it.</p>
+            <h3>How do I send a video's audio to my own recognition service?</h3>
+            <p><code>media.extractAudio</code> returns a wav <code>outputPath</code>. Read it with <code>fs.readFile(path, 'binary')</code> and upload it with <code>net.fetch</code> or a direct <code>fetch</code>. If the engine is not started, you get <code>ENGINE_UNAVAILABLE</code>. If extraction fails, use <code>ui.pickFiles</code> so the user can pick an audio file instead. That is your own recognition service, not the app's built-in speech recognition. The app's built-in path is only the <a href="#api-asr">on-device model</a>.</p>
+            <h3>Can a plugin live inside the editor?</h3>
+            <p>No. A plugin is its own window, and it is mutually exclusive with the editor.</p>
+            <h3>How does export relate to the task center?</h3>
+            <p>They are the same queue. After <code>export.enqueue</code>, the user sees progress in the home task center. Closing the plugin window does not cancel jobs that are already queued.</p>
+            <h3>Can I start ffmpeg?</h3>
+            <p>Yes. Declare <code>process.spawn</code> and pass an absolute path. You cannot start PixiuCut itself or its engine. A program inside the plugin package is allowed. Processes started by the plugin are ended when the plugin window closes.</p>
+            <h3>How does the on-device assistant call a plugin?</h3>
+            <p>Declare tools in <code>manifest.mcp.tools</code>, then register with <code>mcp.onCall</code> and <code>mcp.register</code> after open. Put paths in the arguments. Do not open a file dialog inside the tool handler. See <a href="#package-mcp">the manifest</a> and <a href="#api-mcp">registration</a>.</p>
 
-            <div class="callout" style="margin-top:32px">This is a quick reference. The full SDK (all <code>fs</code>/<code>net</code>/<code>process</code>/<code>media</code>/<code>mcp</code> signatures and constraints) ships with the app. <a href="index.html#download">Download PixiuCut</a> and press <code>F12</code> in the plugin window to debug.</div>
+            <h2 id="protocol">Appendix: message format without the official SDK</h2>
+            <p>Use the injected <code>PixiuCutPlugin</code> by default. It provides timeouts, <code>PluginError.code</code>, and event subscription. If you must send messages yourself, the format is below.</p>
+            <p>Request:</p>
+            <pre class="code"><code>window.parent.postMessage(
+  { type: 'request', id: 1, method: 'draft.list', params: [] },
+  '*',
+)</code></pre>
+            <p><code>id</code> must be a number. <code>params</code> is an array in the same order as the method arguments. The target origin is <code>'*'</code> because the sandboxed page origin is <code>null</code>.</p>
+            <p>Response: <code>{ type: 'response', id, result }</code> or <code>{ type: 'response', id, error: { code, message } }</code>.</p>
+            <p>Event: <code>{ type: 'event', event, payload }</code>. Request <code>events.subscribe</code> before events arrive.</p>
+            <p>Assistant calls (sent by the app only when the official SDK's <code>mcp.onCall</code> is in use): the page receives <code>{ type: 'mcp.invoke', id, name, args }</code>, then replies <code>{ type: 'mcp.result', id, result }</code> or <code>{ type: 'mcp.result', id, error: { code, message } }</code>.</p>
           </div>
         </div>
       </div>
